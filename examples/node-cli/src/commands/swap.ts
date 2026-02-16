@@ -163,20 +163,21 @@ export const swapCommand = new Command('swap')
         return;
       }
 
-      // Get token info for decimals
-      const sourceTokenInfo = await client.getTokenInfo(source.chain, sourceToken);
-
+      // Execute swap with v2 API (no need for getTokenInfo - API handles it)
       const executeResponse = await client.executeSwap({
-        quote: quote,
-        userWallet: options.sender || 'default-sender',
-        sourceTokenMint: sourceToken,
-        sourceTokenDecimals: sourceTokenInfo.decimals,
-        paymentChain: paymentChain,
+        sourceChainId: source.chain,
+        sourceTokenAddress: sourceToken,
+        destinationChainId: dest.chain,
+        destinationTokenAddress: destToken,
+        amount: options.amount,
+        senderAddress: options.sender || 'default-sender',
+        recipientAddress: options.destination,
+        slippageTolerance: slippage,
       });
 
       logger.success(`Swap transaction received!`);
       logger.table({
-        'Order ID': quote.id,
+        'Order ID': executeResponse.metadata.orderId,
         'Transaction Size': `${executeResponse.transaction.length} bytes`,
         'Payment Amount': executeResponse.metadata.paymentAmount,
         'Gas (lamports)': executeResponse.metadata.gasLamports,
@@ -291,13 +292,13 @@ export const swapCommand = new Command('swap')
       }
 
 
-      // STEP 3: Monitor status (using quote ID as order ID)
+      // STEP 3: Monitor status (using order ID from execute response)
       console.log();
       logger.info('Step 3/3: Monitoring swap status...');
       logger.info('This may take several minutes depending on network congestion');
       console.log();
 
-      const result = await client.waitForSettlement(quote.id, {
+      const result = await client.waitForSettlement(executeResponse.metadata.orderId, {
         timeout: 300000, // 5 minutes
         interval: 3000, // 3 seconds
         onStatusUpdate: (status) => {

@@ -50,7 +50,7 @@ Create a `.env` file (optional):
 
 ```bash
 # Optional: Override API URL
-VITE_CLAWSWAP_API_URL=https://api.clawswap.xyz
+VITE_CLAWSWAP_API_URL=https://api.clawswap.dev
 ```
 
 ## Wallet Setup
@@ -310,7 +310,7 @@ netlify deploy --dir=dist --prod
 
 Set in your hosting platform:
 ```bash
-VITE_CLAWSWAP_API_URL=https://api.clawswap.xyz
+VITE_CLAWSWAP_API_URL=https://api.clawswap.dev
 ```
 
 ## Security Notes

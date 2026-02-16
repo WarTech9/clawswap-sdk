@@ -1,6 +1,6 @@
 {
   "name": "@clawswap/sdk",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Framework-agnostic TypeScript SDK for ClawSwap cross-chain swaps",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -15,7 +15,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
@@ -37,6 +38,15 @@
   ],
   "author": "ClawSwap",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clawswap/clawswap-sdk.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/clawswap/clawswap-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/clawswap/clawswap-sdk/issues"
+  },
   "dependencies": {
     "zod": "^3.22.4"
   },

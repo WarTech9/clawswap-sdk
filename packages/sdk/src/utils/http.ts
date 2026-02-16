@@ -79,7 +79,7 @@ export class HttpClient {
     let errorData: Partial<ApiError>;
 
     try {
-      errorData = await response.json();
+      errorData = (await response.json()) as Partial<ApiError>;
     } catch {
       errorData = {
         code: 'UNKNOWN_ERROR',

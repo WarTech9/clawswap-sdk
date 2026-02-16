@@ -178,5 +178,5 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions.
 ## Additional Resources
 
 - [ClawSwap SDK Documentation](../packages/sdk/README.md)
-- [API Documentation](https://docs.clawswap.xyz)
+- [API Documentation](https://docs.clawswap.dev)
 - [GitHub Issues](https://github.com/clawswap/clawswap-sdk/issues)

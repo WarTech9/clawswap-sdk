@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   quoteRequestSchema,
-  swapRequestSchema,
   statusRequestSchema,
   chainIdSchema,
   tokenAddressSchema,
@@ -105,79 +104,6 @@ describe('Validation Schemas', () => {
         })
       ).toThrow();
     });
-  });
-
-  describe('swapRequestSchema', () => {
-    const mockQuote = {
-      id: 'quote-123',
-      sourceAmount: '1000000',
-      destinationAmount: '999000',
-      fees: {
-        operatingExpenses: '1000',
-        networkFee: '500',
-        totalFeeUsd: 0.502,
-        relayerFee: '1000',
-        relayerFeeFormatted: '0.001',
-        gasSolLamports: '5000',
-        gasSolFormatted: '0.000005',
-        gasUsd: '0.001',
-      },
-      estimatedTimeSeconds: 300,
-      expiresAt: new Date(Date.now() + 30000).toISOString(),
-      expiresIn: 30,
-      transactionData: {
-        instructions: [],
-      },
-    };
-
-    const validSwapRequest = {
-      quote: mockQuote,
-      userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-      sourceTokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      sourceTokenDecimals: 6,
-    };
-
-    it('should validate complete swap request', () => {
-      const result = swapRequestSchema.parse(validSwapRequest);
-      expect(result).toEqual(validSwapRequest);
-    });
-
-    it('should require quote', () => {
-      const { quote, ...incomplete } = validSwapRequest;
-      expect(() => swapRequestSchema.parse(incomplete)).toThrow();
-    });
-
-    it('should require userWallet', () => {
-      const { userWallet, ...incomplete } = validSwapRequest;
-      expect(() => swapRequestSchema.parse(incomplete)).toThrow();
-    });
-
-    it('should require sourceTokenMint', () => {
-      const { sourceTokenMint, ...incomplete } = validSwapRequest;
-      expect(() => swapRequestSchema.parse(incomplete)).toThrow();
-    });
-
-    it('should require sourceTokenDecimals', () => {
-      const { sourceTokenDecimals, ...incomplete } = validSwapRequest;
-      expect(() => swapRequestSchema.parse(incomplete)).toThrow();
-    });
-
-    it('should validate sourceTokenDecimals is within range', () => {
-      expect(() =>
-        swapRequestSchema.parse({
-          ...validSwapRequest,
-          sourceTokenDecimals: -1,
-        })
-      ).toThrow();
-
-      expect(() =>
-        swapRequestSchema.parse({
-          ...validSwapRequest,
-          sourceTokenDecimals: 19,
-        })
-      ).toThrow();
-    });
-
   });
 
   describe('statusRequestSchema', () => {

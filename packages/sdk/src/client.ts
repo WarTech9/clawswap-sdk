@@ -2,7 +2,6 @@ import type {
   ClawSwapConfig,
   QuoteRequest,
   QuoteResponse,
-  SwapRequest,
   ExecuteSwapResponse,
   StatusResponse,
   WaitForSettlementOptions,
@@ -11,7 +10,7 @@ import type {
 } from './types';
 import { HttpClient } from './utils/http';
 import { poll, isTerminalStatus } from './utils/polling';
-import { quoteRequestSchema, swapRequestSchema, statusRequestSchema } from './schemas';
+import { quoteRequestSchema, statusRequestSchema } from './schemas';
 
 /**
  * ClawSwap SDK Client
@@ -48,6 +47,8 @@ import { quoteRequestSchema, swapRequestSchema, statusRequestSchema } from './sc
  */
 export class ClawSwapClient {
   private http: HttpClient;
+  private pairsCache: { data: any[], timestamp: number } | null = null;
+  private readonly PAIRS_CACHE_TTL = 3600000; // 1 hour
 
   constructor(config: ClawSwapConfig = {}) {
     this.http = new HttpClient(config);
@@ -63,19 +64,23 @@ export class ClawSwapClient {
   }
 
   /**
-   * Execute a cross-chain swap using a quote ID
-   * Protected by x402 - requires payment ($0.10 USDC)
+   * Execute a cross-chain swap
+   * Protected by x402 - requires payment ($0.50 USDC on Solana)
    * Fetch must be x402-wrapped for automatic payment handling
+   *
+   * The API fetches a fresh quote internally, so no quote expiry issues.
+   * Pass the same parameters you would use for getQuote().
    *
    * Returns a partially-signed transaction that must be:
    * 1. Signed by the user
    * 2. Submitted to Solana RPC
-   * 3. Then poll status using the quote ID
+   * 3. Then poll status using the returned orderId from metadata
    *
-   * @returns Transaction to sign and metadata
+   * @param request Same parameters as getQuote()
+   * @returns Transaction to sign and metadata (includes orderId for tracking)
    */
-  async executeSwap(request: SwapRequest): Promise<ExecuteSwapResponse> {
-    const validated = swapRequestSchema.parse(request);
+  async executeSwap(request: QuoteRequest): Promise<ExecuteSwapResponse> {
+    const validated = quoteRequestSchema.parse(request);
     return this.http.post<ExecuteSwapResponse>('/api/swap/execute', validated);
   }
 
@@ -144,6 +149,7 @@ export class ClawSwapClient {
   /**
    * Get supported token pairs
    * Derived from chains and tokens - no dedicated endpoint yet
+   * Results are cached for 1 hour to reduce API calls
    */
   async getSupportedPairs(): Promise<
     Array<{
@@ -153,6 +159,12 @@ export class ClawSwapClient {
       destinationToken: string;
     }>
   > {
+    // Return cached pairs if fresh
+    if (this.pairsCache && Date.now() - this.pairsCache.timestamp < this.PAIRS_CACHE_TTL) {
+      return this.pairsCache.data;
+    }
+
+    // Build fresh pairs
     const chains = await this.getSupportedChains();
     const pairs = [];
 
@@ -178,6 +190,8 @@ export class ClawSwapClient {
       }
     }
 
+    // Cache results
+    this.pairsCache = { data: pairs, timestamp: Date.now() };
     return pairs;
   }
 }

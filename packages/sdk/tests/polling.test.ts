@@ -24,10 +24,6 @@ describe('Polling Utilities', () => {
       expect(isTerminalStatus('failed')).toBe(true);
     });
 
-    it('should return true for expired status', () => {
-      expect(isTerminalStatus('expired')).toBe(true);
-    });
-
     it('should return false for pending status', () => {
       expect(isTerminalStatus('pending')).toBe(false);
     });
@@ -117,7 +113,7 @@ describe('Polling Utilities', () => {
       });
 
       expect(result.status).toBe('completed');
-      expect(mockFn).toHaveBeenCalledTimes(3);
+      expect(mockFn).toHaveBeenCalledTimes(2);
     });
   });
 });

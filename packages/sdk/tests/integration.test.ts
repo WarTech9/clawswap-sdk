@@ -9,7 +9,7 @@ import { ClawSwapClient } from '../src/client';
  */
 describe('Integration Tests', () => {
   let client: ClawSwapClient;
-  const apiUrl = process.env.CLAWSWAP_API_URL || 'https://api.clawswap.xyz';
+  const apiUrl = process.env.CLAWSWAP_API_URL || 'https://api.clawswap.dev';
 
   beforeAll(() => {
     client = new ClawSwapClient({
@@ -29,9 +29,9 @@ describe('Integration Tests', () => {
       const chain = chains[0];
       expect(chain).toHaveProperty('id');
       expect(chain).toHaveProperty('name');
-      expect(chain).toHaveProperty('nativeToken');
-      expect(chain.nativeToken).toHaveProperty('symbol');
-      expect(chain.nativeToken).toHaveProperty('decimals');
+      expect(chain).toHaveProperty('nativeCurrency');
+      expect(chain.nativeCurrency).toHaveProperty('symbol');
+      expect(chain.nativeCurrency).toHaveProperty('decimals');
     });
 
     it('should fetch supported tokens for Solana', async () => {
@@ -50,14 +50,14 @@ describe('Integration Tests', () => {
       expect(token.chainId).toBe('solana');
     });
 
-    it('should fetch supported tokens for Arbitrum', async () => {
-      const tokens = await client.getSupportedTokens('arbitrum');
+    it('should fetch supported tokens for Base', async () => {
+      const tokens = await client.getSupportedTokens('base');
 
       expect(Array.isArray(tokens)).toBe(true);
       expect(tokens.length).toBeGreaterThan(0);
 
       const token = tokens[0];
-      expect(token.chainId).toBe('arbitrum');
+      expect(token.chainId).toBe('base');
     });
 
     it('should derive supported pairs', async () => {
@@ -79,16 +79,16 @@ describe('Integration Tests', () => {
   });
 
   describe('Quote Endpoint (Free)', () => {
-    it('should get a quote for SOL -> USDC on Arbitrum', async () => {
+    it('should get a quote for SOL -> USDC on Base', async () => {
       const chains = await client.getSupportedChains();
       const solanaTokens = await client.getSupportedTokens('solana');
-      const arbitrumTokens = await client.getSupportedTokens('arbitrum');
+      const baseTokens = await client.getSupportedTokens('base');
 
       const solanaUSDC = solanaTokens.find((t) => t.symbol === 'USDC');
-      const arbitrumUSDC = arbitrumTokens.find((t) => t.symbol === 'USDC');
+      const baseUSDC = baseTokens.find((t) => t.symbol === 'USDC');
 
       // Skip if tokens not available
-      if (!solanaUSDC || !arbitrumUSDC) {
+      if (!solanaUSDC || !baseUSDC) {
         console.log('Skipping: USDC not available on both chains');
         return;
       }
@@ -96,9 +96,11 @@ describe('Integration Tests', () => {
       const quote = await client.getQuote({
         sourceChainId: 'solana',
         sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'arbitrum',
-        destinationTokenAddress: arbitrumUSDC.address,
+        destinationChainId: 'base',
+        destinationTokenAddress: baseUSDC.address,
         amount: '1000000', // 1 USDC (6 decimals)
+        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
       // Verify quote structure
@@ -126,37 +128,33 @@ describe('Integration Tests', () => {
     it('should include fee breakdown in quote', async () => {
       const chains = await client.getSupportedChains();
       const solanaTokens = await client.getSupportedTokens('solana');
-      const arbitrumTokens = await client.getSupportedTokens('arbitrum');
+      const baseTokens = await client.getSupportedTokens('base');
 
       const solanaUSDC = solanaTokens.find((t) => t.symbol === 'USDC');
-      const arbitrumUSDC = arbitrumTokens.find((t) => t.symbol === 'USDC');
+      const baseUSDC = baseTokens.find((t) => t.symbol === 'USDC');
 
-      if (!solanaUSDC || !arbitrumUSDC) return;
+      if (!solanaUSDC || !baseUSDC) return;
 
       const quote = await client.getQuote({
         sourceChainId: 'solana',
         sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'arbitrum',
-        destinationTokenAddress: arbitrumUSDC.address,
+        destinationChainId: 'base',
+        destinationTokenAddress: baseUSDC.address,
         amount: '1000000',
+        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
-      // Verify fee structure
-      expect(quote).toHaveProperty('estimatedGasCost');
-      expect(quote.estimatedGasCost).toHaveProperty('amount');
-      expect(quote.estimatedGasCost).toHaveProperty('usdValue');
+      // Verify fee structure (v2 API format)
+      expect(quote).toHaveProperty('fees');
+      expect(quote.fees).toHaveProperty('totalFeeUsd');
+      expect(quote.fees).toHaveProperty('relayerFee');
+      expect(quote.fees).toHaveProperty('gasSolLamports');
 
-      expect(quote).toHaveProperty('relayerFee');
-      expect(quote.relayerFee).toHaveProperty('amount');
-      expect(quote.relayerFee).toHaveProperty('percent');
-      expect(quote.relayerFee).toHaveProperty('usdValue');
-
-      expect(quote).toHaveProperty('x402Fee');
-      expect(quote.x402Fee).toHaveProperty('amount');
-      expect(quote.x402Fee).toHaveProperty('usdValue');
-
-      // x402 fee should be $0.50
-      expect(quote.x402Fee.usdValue).toBe('0.50');
+      // Verify fee values are reasonable
+      const totalFee = parseFloat(quote.fees.totalFeeUsd);
+      expect(totalFee).toBeGreaterThan(0);
+      expect(totalFee).toBeLessThan(100); // Sanity check
     });
   });
 
@@ -171,17 +169,21 @@ describe('Integration Tests', () => {
       const fetchWithPayment = wrapFetchWithPayment(fetch, walletClient);
       const client = new ClawSwapClient({ fetch: fetchWithPayment });
 
-      const swap = await client.executeSwap({
+      const executeResponse = await client.executeSwap({
         sourceChainId: 'solana',
         sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         destinationChainId: 'base',
         destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         amount: '1000000',
-        destinationAddress: '0xYourAddress',
+        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
-      expect(swap).toHaveProperty('swapId');
-      expect(swap.status).toBe('pending');
+      expect(executeResponse).toHaveProperty('transaction');
+      expect(executeResponse).toHaveProperty('metadata');
+      expect(executeResponse.metadata).toHaveProperty('orderId');
+      expect(executeResponse.metadata).toHaveProperty('paymentAmount');
+      expect(executeResponse.metadata).toHaveProperty('gasLamports');
       */
     });
 
@@ -208,9 +210,11 @@ describe('Integration Tests', () => {
         client.getQuote({
           sourceChainId: 'solana',
           sourceTokenAddress: 'invalid',
-          destinationChainId: 'arbitrum',
+          destinationChainId: 'base',
           destinationTokenAddress: 'invalid',
           amount: '1000000',
+          senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+          recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
         })
       ).rejects.toThrow();
     });
@@ -236,20 +240,22 @@ describe('Integration Tests', () => {
     it('should get quote quickly (< 3s)', async () => {
       const chains = await client.getSupportedChains();
       const solanaTokens = await client.getSupportedTokens('solana');
-      const arbitrumTokens = await client.getSupportedTokens('arbitrum');
+      const baseTokens = await client.getSupportedTokens('base');
 
       const solanaUSDC = solanaTokens.find((t) => t.symbol === 'USDC');
-      const arbitrumUSDC = arbitrumTokens.find((t) => t.symbol === 'USDC');
+      const baseUSDC = baseTokens.find((t) => t.symbol === 'USDC');
 
-      if (!solanaUSDC || !arbitrumUSDC) return;
+      if (!solanaUSDC || !baseUSDC) return;
 
       const start = Date.now();
       await client.getQuote({
         sourceChainId: 'solana',
         sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'arbitrum',
-        destinationTokenAddress: arbitrumUSDC.address,
+        destinationChainId: 'base',
+        destinationTokenAddress: baseUSDC.address,
         amount: '1000000',
+        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
       const elapsed = Date.now() - start;
 

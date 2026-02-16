@@ -43,40 +43,10 @@ export const quoteRequestSchema = z.object({
   slippageTolerance: z.number().min(0).max(1).optional(),
 });
 
-// Swap request schema
-export const swapRequestSchema = z.object({
-  quote: z.object({
-    id: z.string(),
-    sourceAmount: z.string(),
-    destinationAmount: z.string(),
-    fees: z.object({
-      operatingExpenses: z.string(),
-      networkFee: z.string(),
-      totalFeeUsd: z.number(),
-      relayerFee: z.string(),
-      relayerFeeFormatted: z.string(),
-      gasSolLamports: z.string(),
-      gasSolFormatted: z.string(),
-      gasUsd: z.string(),
-    }),
-    estimatedTimeSeconds: z.number(),
-    expiresAt: z.string(),
-    expiresIn: z.number(),
-    transactionData: z.object({
-      instructions: z.array(z.any()), // Relay instructions
-    }),
-  }),
-  userWallet: z.string().min(1, 'User wallet address is required'),
-  sourceTokenMint: z.string().min(1, 'Source token mint is required'),
-  sourceTokenDecimals: z.number().int().min(0).max(18),
-  paymentChain: z.enum(['solana', 'base']).default('solana'),
-});
-
 // Status request schema
 export const statusRequestSchema = z.object({
   swapId: z.string().min(1, 'Swap ID is required'),
 });
 
 export type QuoteRequestInput = z.infer<typeof quoteRequestSchema>;
-export type SwapRequestInput = z.infer<typeof swapRequestSchema>;
 export type StatusRequestInput = z.infer<typeof statusRequestSchema>;

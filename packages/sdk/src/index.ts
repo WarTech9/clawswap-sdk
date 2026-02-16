@@ -6,7 +6,6 @@ export type {
   ClawSwapConfig,
   QuoteRequest,
   QuoteResponse,
-  SwapRequest,
   ExecuteSwapResponse,
   SwapResponse, // Alias for ExecuteSwapResponse (backwards compatibility)
   StatusResponse,
@@ -34,4 +33,4 @@ export {
 } from './errors';
 
 // Schemas (for external validation if needed)
-export { quoteRequestSchema, swapRequestSchema, statusRequestSchema } from './schemas';
+export { quoteRequestSchema, statusRequestSchema } from './schemas';

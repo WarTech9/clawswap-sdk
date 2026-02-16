@@ -10,10 +10,11 @@
 export interface Chain {
   id: string;
   name: string;
-  nativeToken: {
+  nativeCurrency: {
     symbol: string;
     decimals: number;
   };
+  blockExplorerUrl?: string;
   isTestnet?: boolean;
 }
 
@@ -45,14 +46,6 @@ export interface QuoteRequest {
   senderAddress: string; // Sender's wallet address on source chain
   recipientAddress: string; // Recipient's wallet address on destination chain
   slippageTolerance?: number; // Optional, 0-1 (e.g., 0.01 = 1%)
-}
-
-export interface SwapRequest {
-  quote: QuoteResponse; // Full quote object from getQuote
-  userWallet: string; // User's Solana wallet address
-  sourceTokenMint: string; // Source token mint address
-  sourceTokenDecimals: number; // Number of decimals for source token
-  paymentChain: 'solana' | 'base'; // Chain to pay x402 fee (default: solana)
 }
 
 export interface StatusRequest {
@@ -102,6 +95,8 @@ export interface ExecuteSwapResponse {
   transaction: string;
   /** Transaction metadata */
   metadata: {
+    /** Order ID for tracking swap status via /api/swap/:id/status */
+    orderId: string;
     /** Token amount being sent to server for gas reimbursement (smallest unit) */
     paymentAmount: string;
     /** Gas cost in SOL lamports that server is paying */
@@ -203,7 +198,7 @@ export interface ApiError {
 export interface ClawSwapConfig {
   /**
    * Base URL for the ClawSwap API
-   * @default "https://api.clawswap.xyz"
+   * @default "https://api.clawswap.dev"
    */
   baseUrl?: string;
 

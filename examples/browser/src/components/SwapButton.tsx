@@ -6,9 +6,11 @@ interface Props {
   quote: QuoteResponse;
   sourceChainId: string;
   sourceTokenAddress: string;
+  destinationChainId: string;
+  destinationTokenAddress: string;
   senderAddress: string;
   destinationAddress: string;
-  onSwapInitiated?: (swapId: string) => void;
+  onSwapInitiated?: (orderId: string) => void;
 }
 
 export function SwapButton({
@@ -16,6 +18,8 @@ export function SwapButton({
   quote,
   sourceChainId,
   sourceTokenAddress,
+  destinationChainId,
+  destinationTokenAddress,
   senderAddress,
   destinationAddress,
   onSwapInitiated
@@ -28,18 +32,19 @@ export function SwapButton({
     setError('');
 
     try {
-      // Get token info for decimals
-      const sourceToken = await client.getTokenInfo(sourceChainId, sourceTokenAddress);
-
-      const swap = await client.executeSwap({
-        quote: quote,
-        userWallet: senderAddress,
-        sourceTokenMint: sourceTokenAddress,
-        sourceTokenDecimals: sourceToken.decimals,
+      // Execute swap with v2 API (no need for getTokenInfo - API handles it)
+      const executeResponse = await client.executeSwap({
+        sourceChainId: sourceChainId,
+        sourceTokenAddress: sourceTokenAddress,
+        destinationChainId: destinationChainId,
+        destinationTokenAddress: destinationTokenAddress,
+        amount: quote.sourceAmount,
+        senderAddress: senderAddress,
+        recipientAddress: destinationAddress,
       });
 
-      console.log('Swap initiated:', swap);
-      onSwapInitiated?.(swap.swapId);
+      console.log('Swap initiated:', executeResponse);
+      onSwapInitiated?.(executeResponse.metadata.orderId);
     } catch (err) {
       console.error('Swap failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to execute swap');
@@ -60,7 +65,7 @@ export function SwapButton({
         </div>
         <div className="summary-row">
           <span>Fee (via x402):</span>
-          <strong>${quote.fees.totalFeeUsd.toFixed(2)} USDC</strong>
+          <strong>${parseFloat(quote.fees.totalFeeUsd).toFixed(2)} USDC</strong>
         </div>
       </div>
 
@@ -81,7 +86,7 @@ export function SwapButton({
       {error && <div className="error">{error}</div>}
 
       <p className="info">
-        ℹ️ This will charge ${quote.fees.totalFeeUsd.toFixed(2)} USDC from your wallet via x402.
+        ℹ️ This will charge ${parseFloat(quote.fees.totalFeeUsd).toFixed(2)} USDC from your wallet via x402.
         Make sure you have sufficient USDC balance.
       </p>
     </div>

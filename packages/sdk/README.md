@@ -15,13 +15,17 @@ pnpm add @clawswap/sdk @x402/fetch
 ```typescript
 import { ClawSwapClient } from '@clawswap/sdk';
 import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
-import { registerExactEvmScheme } from '@x402/evm/exact/client';
-import { privateKeyToAccount } from 'viem/accounts';
+import { registerExactSvmScheme } from '@x402/svm/exact/client';
+import { Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
 
-// 1. Set up x402 payment
-const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+// 1. Set up x402 payment on Solana
+const keypair = Keypair.fromSecretKey(bs58.decode(process.env.SOLANA_PRIVATE_KEY!));
 const client = new x402Client();
-registerExactEvmScheme(client, { signer: account });
+registerExactSvmScheme(client, {
+  signer: keypair,
+  network: 'solana:mainnet'
+});
 const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
 // 2. Create ClawSwap client
@@ -29,7 +33,7 @@ const clawswap = new ClawSwapClient({
   fetch: fetchWithPayment
 });
 
-// 3. Get a quote
+// 3. Optional: Get a quote for preview
 const quote = await clawswap.getQuote({
   sourceChainId: 'solana',
   sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -40,26 +44,29 @@ const quote = await clawswap.getQuote({
   recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
 });
 
-console.log(`Quote: ${quote.destinationAmount} tokens`);
+console.log(`You will receive: ${quote.destinationAmount} tokens`);
 console.log(`Fee: $${quote.fees.totalFeeUsd}`);
-console.log(`Expires in: ${quote.expiresIn}s`);
 
-// 4. Get token info for decimals
-const sourceToken = await clawswap.getTokenInfo('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
-
-// 5. Execute swap (requires $0.50 USDC payment)
-const swap = await clawswap.executeSwap({
-  quote: quote,
-  userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  sourceTokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  sourceTokenDecimals: sourceToken.decimals,
+// 4. Execute swap (requires $0.50 USDC payment)
+// Can skip getQuote() and execute directly - API fetches fresh quote internally
+const executeResponse = await clawswap.executeSwap({
+  sourceChainId: 'solana',
+  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  destinationChainId: 'base',
+  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  amount: '1000000',
+  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
 });
 
-console.log(`Swap initiated: ${swap.swapId}`);
-console.log(`Status: ${swap.status}`);
+console.log(`Transaction received: ${executeResponse.transaction.slice(0, 20)}...`);
+console.log(`Order ID: ${executeResponse.metadata.orderId}`);
 
-// 6. Wait for completion
-const result = await clawswap.waitForSettlement(swap.swapId, {
+// 5. Sign and submit transaction
+// ... decode, sign, submit to Solana RPC ...
+
+// 6. Wait for completion using order ID from execute response
+const result = await clawswap.waitForSettlement(executeResponse.metadata.orderId, {
   onStatusUpdate: (status) => console.log(`Status: ${status.status}`),
 });
 
@@ -111,13 +118,17 @@ const quote = await client.getQuote({
 });
 ```
 
-##### `executeSwap(request: SwapRequest): Promise<SwapResponse>`
+##### `executeSwap(request: QuoteRequest): Promise<ExecuteSwapResponse>`
 
-Execute a cross-chain swap using a quote. **Requires $0.50 USDC payment via x402**.
+Execute a cross-chain swap. **Requires $0.50 USDC payment via x402 on Solana**.
+
+Accepts the same parameters as `getQuote()`. The API fetches a fresh quote internally, so no quote expiry issues.
+
+Returns a partially-signed transaction that must be signed by the user and submitted to Solana RPC.
 
 ```typescript
-// First get a quote
-const quote = await client.getQuote({
+// Execute swap directly (no need to call getQuote first)
+const executeResponse = await client.executeSwap({
   sourceChainId: 'solana',
   sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   destinationChainId: 'base',
@@ -125,35 +136,31 @@ const quote = await client.getQuote({
   amount: '1000000',
   senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
   recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+  slippageTolerance: 0.01, // Optional
 });
 
-// Get token info for decimals
-const sourceToken = await client.getTokenInfo('solana', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
-
-// Then execute the swap
-const swap = await client.executeSwap({
-  quote: quote,
-  userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  sourceTokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  sourceTokenDecimals: sourceToken.decimals,
-});
+// Response includes transaction to sign and orderId for tracking
+console.log(executeResponse.transaction); // Base64-encoded transaction
+console.log(executeResponse.metadata.orderId); // Use for status tracking
 ```
 
-##### `getStatus(swapId: string): Promise<StatusResponse>`
+##### `getStatus(orderId: string): Promise<StatusResponse>`
 
-Check the status of a swap. **Free endpoint**.
+Check the status of a swap using the order ID. **Free endpoint**.
 
 ```typescript
-const status = await client.getStatus('swap-123');
-console.log(status.status); // 'pending' | 'bridging' | 'completed' etc.
+// Use orderId from executeSwap response
+const status = await client.getStatus(executeResponse.metadata.orderId);
+console.log(status.status); // 'pending' | 'created' | 'fulfilled' | 'completed' | 'failed' | 'cancelled'
 ```
 
-##### `waitForSettlement(swapId: string, options?): Promise<StatusResponse>`
+##### `waitForSettlement(orderId: string, options?): Promise<StatusResponse>`
 
-Poll until swap reaches a terminal state (completed/failed/expired).
+Poll until swap reaches a terminal state (fulfilled/completed/failed/cancelled).
 
 ```typescript
-const result = await client.waitForSettlement('swap-123', {
+// Use orderId from executeSwap response
+const result = await client.waitForSettlement(executeResponse.metadata.orderId, {
   timeout: 300000, // 5 minutes (default)
   interval: 3000,  // Poll every 3 seconds (default)
   onStatusUpdate: (status) => {
@@ -180,10 +187,11 @@ const tokens = await client.getSupportedTokens('solana');
 
 ##### `getSupportedPairs(): Promise<TokenPair[]>`
 
-Get all valid cross-chain swap pairs. Derives pairs from chains and tokens.
+Get all valid cross-chain swap pairs. Derives pairs from chains and tokens. **Results are cached for 1 hour**.
 
 ```typescript
 const pairs = await client.getSupportedPairs();
+// Returns array of { sourceChain, sourceToken, destinationChain, destinationToken }
 ```
 
 ## Error Handling
@@ -224,24 +232,26 @@ try {
 
 ## Quote Expiry
 
-Quotes expire in **30 seconds**. The SDK includes `expiresIn` and `expiresAt` fields:
+When using `getQuote()` for preview, quotes expire in **30 seconds**. The SDK includes `expiresIn` and `expiresAt` fields:
 
 ```typescript
 const quote = await client.getQuote(request);
-console.log(`Expires in ${quote.expiresIn} seconds`);
+console.log(`Quote expires in ${quote.expiresIn} seconds`);
+console.log(`Estimated output: ${quote.destinationAmount} tokens`);
+```
 
-// Set a timer to warn before expiry
-setTimeout(() => {
-  console.warn('Quote expiring soon!');
-}, (quote.expiresIn - 5) * 1000);
+**Note:** Quote expiry is NOT an issue when executing swaps. The `executeSwap()` method fetches a fresh quote internally, so you don't need to worry about timing:
 
-// Get token info and execute within 30 seconds
-const sourceToken = await client.getTokenInfo(request.sourceChainId, request.sourceTokenAddress);
-await client.executeSwap({
-  quote: quote,
-  userWallet: request.senderAddress,
-  sourceTokenMint: request.sourceTokenAddress,
-  sourceTokenDecimals: sourceToken.decimals,
+```typescript
+// No quote expiry issues - API fetches fresh quote
+const executeResponse = await client.executeSwap({
+  sourceChainId: 'solana',
+  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  destinationChainId: 'base',
+  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  amount: '1000000',
+  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
 });
 ```
 
