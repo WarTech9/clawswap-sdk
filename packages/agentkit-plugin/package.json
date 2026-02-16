@@ -1,0 +1,51 @@
+{
+  "name": "@clawswap/agentkit-plugin",
+  "version": "0.1.0",
+  "description": "Coinbase AgentKit plugin for ClawSwap cross-chain swaps",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "clawswap",
+    "agentkit",
+    "coinbase",
+    "cross-chain",
+    "ai-agents",
+    "base"
+  ],
+  "author": "ClawSwap",
+  "license": "MIT",
+  "dependencies": {
+    "@clawswap/sdk": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@coinbase/agentkit": "^0.2.0",
+    "@x402/fetch": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

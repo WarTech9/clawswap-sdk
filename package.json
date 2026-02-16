@@ -1,0 +1,33 @@
+{
+  "name": "clawswap-sdk-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClawSwap SDK for cross-chain AI agent swaps",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "eslint packages/*/src --ext .ts",
+    "format": "prettier --write \"packages/*/src/**/*.ts\"",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "dev": "pnpm -r dev",
+    "example:node": "pnpm --filter @clawswap/example-node-cli dev",
+    "example:browser": "pnpm --filter @clawswap/example-browser dev",
+    "examples:install": "pnpm --filter './examples/**' install",
+    "examples:build": "pnpm --filter './examples/**' build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5",
+    "tsup": "^8.0.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

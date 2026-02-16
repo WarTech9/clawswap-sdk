@@ -1,0 +1,245 @@
+/**
+ * Core types for ClawSwap SDK
+ * Generated from OpenAPI spec with manual refinements
+ */
+
+// ============================================================================
+// Chain and Token Types
+// ============================================================================
+
+export interface Chain {
+  id: string;
+  name: string;
+  nativeToken: {
+    symbol: string;
+    decimals: number;
+  };
+  isTestnet?: boolean;
+}
+
+export interface Token {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  chainId: string;
+  logoUri?: string;
+  // Token-2022 specific properties
+  isToken2022?: boolean;
+  transferFeeConfig?: {
+    transferFeeBasisPoints: number;
+    maximumFee: string;
+  };
+}
+
+// ============================================================================
+// Request Types
+// ============================================================================
+
+export interface QuoteRequest {
+  sourceChainId: string;
+  sourceTokenAddress: string;
+  destinationChainId: string;
+  destinationTokenAddress: string;
+  amount: string; // String to handle big numbers
+  senderAddress: string; // Sender's wallet address on source chain
+  recipientAddress: string; // Recipient's wallet address on destination chain
+  slippageTolerance?: number; // Optional, 0-1 (e.g., 0.01 = 1%)
+}
+
+export interface SwapRequest {
+  quote: QuoteResponse; // Full quote object from getQuote
+  userWallet: string; // User's Solana wallet address
+  sourceTokenMint: string; // Source token mint address
+  sourceTokenDecimals: number; // Number of decimals for source token
+  paymentChain: 'solana' | 'base'; // Chain to pay x402 fee (default: solana)
+}
+
+export interface StatusRequest {
+  swapId: string;
+}
+
+// ============================================================================
+// Response Types
+// ============================================================================
+
+export interface QuoteResponse {
+  id: string; // Changed from quoteId to match API
+  sourceAmount: string;
+  destinationAmount: string;
+  fees: {
+    operatingExpenses: string;
+    networkFee: string;
+    totalFeeUsd: number;
+    relayerFee: string;
+    relayerFeeFormatted: string;
+    gasSolLamports: string;
+    gasSolFormatted: string;
+    gasUsd: string;
+  };
+  estimatedTimeSeconds: number;
+  expiresAt: string; // ISO 8601 timestamp
+  expiresIn: number; // Seconds until expiry (30s)
+  transactionData: {
+    instructions: Array<{
+      programId: string;
+      keys: Array<{
+        pubkey: string;
+        isSigner: boolean;
+        isWritable: boolean;
+      }>;
+      data: string;
+    }>;
+  };
+}
+
+/**
+ * Response from POST /api/swap/execute
+ * Returns a partially-signed transaction that the user must sign and submit
+ */
+export interface ExecuteSwapResponse {
+  /** Base64-encoded partially-signed Solana transaction */
+  transaction: string;
+  /** Transaction metadata */
+  metadata: {
+    /** Token amount being sent to server for gas reimbursement (smallest unit) */
+    paymentAmount: string;
+    /** Gas cost in SOL lamports that server is paying */
+    gasLamports: string;
+    /** Whether the source token is Token-2022 */
+    isToken2022: boolean;
+    /** Whether memo instruction was added */
+    requiresMemo?: boolean;
+  };
+}
+
+/**
+ * Swap statuses from Relay API
+ * Maps to Relay's order statuses
+ */
+export type SwapStatus =
+  | 'pending' // Order created but not yet submitted
+  | 'created' // Order submitted to Relay
+  | 'fulfilled' // Destination transaction confirmed
+  | 'completed' // Same as fulfilled (alias)
+  | 'cancelled' // Order cancelled
+  | 'failed'; // Order failed
+
+export interface SwapTransaction {
+  chainId: string;
+  txHash: string;
+  status: 'pending' | 'confirmed' | 'failed';
+  confirmations?: number;
+  explorerUrl?: string;
+}
+
+/**
+ * Response from GET /api/swap/:id/status
+ * Based on Relay's OrderInfo structure
+ */
+export interface StatusResponse {
+  /** Order ID (same as quote ID) */
+  orderId: string;
+  /** Current order status */
+  status: SwapStatus;
+  /** Source chain ID */
+  sourceChainId: string;
+  /** Destination chain ID */
+  destinationChainId: string;
+  /** Source amount in smallest unit */
+  sourceAmount: string;
+  /** Destination amount in smallest unit */
+  destinationAmount: string;
+  /** Source chain transaction hash */
+  sourceTxHash?: string;
+  /** Destination chain transaction hash */
+  destinationTxHash?: string;
+  /** Block explorer URL for destination transaction */
+  explorerUrl?: string;
+  /** Order creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+  /** Estimated completion time */
+  estimatedCompletionTime?: string;
+  /** Failure reason if status is 'failed' */
+  failureReason?: string;
+}
+
+// For backwards compatibility during migration
+export type SwapResponse = ExecuteSwapResponse;
+
+// ============================================================================
+// Error Types
+// ============================================================================
+
+export type ErrorCode =
+  | 'INSUFFICIENT_LIQUIDITY'
+  | 'AMOUNT_TOO_LOW'
+  | 'AMOUNT_TOO_HIGH'
+  | 'UNSUPPORTED_PAIR'
+  | 'QUOTE_EXPIRED'
+  | 'INVALID_TOKEN_ADDRESS'
+  | 'INVALID_CHAIN_ID'
+  | 'PAYMENT_REQUIRED'
+  | 'PAYMENT_VERIFICATION_FAILED'
+  | 'SERVER_CONFIGURATION_ERROR'
+  | 'BRIDGE_API_ERROR'
+  | 'PRICE_FEED_UNAVAILABLE'
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'UNKNOWN_ERROR';
+
+export interface ApiError {
+  code: ErrorCode;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+// ============================================================================
+// SDK Configuration
+// ============================================================================
+
+export interface ClawSwapConfig {
+  /**
+   * Base URL for the ClawSwap API
+   * @default "https://api.clawswap.xyz"
+   */
+  baseUrl?: string;
+
+  /**
+   * Custom fetch implementation (e.g., x402-wrapped fetch)
+   * @default global fetch
+   */
+  fetch?: typeof fetch;
+
+  /**
+   * Request timeout in milliseconds
+   * @default 30000 (30s)
+   */
+  timeout?: number;
+
+  /**
+   * Custom headers to include in all requests
+   */
+  headers?: Record<string, string>;
+}
+
+export interface WaitForSettlementOptions {
+  /**
+   * Maximum time to wait in milliseconds
+   * @default 300000 (5 minutes)
+   */
+  timeout?: number;
+
+  /**
+   * Polling interval in milliseconds
+   * @default 3000 (3s)
+   */
+  interval?: number;
+
+  /**
+   * Callback for status updates
+   */
+  onStatusUpdate?: (status: StatusResponse) => void;
+}

@@ -1,0 +1,57 @@
+{
+  "name": "@clawswap/sdk",
+  "version": "0.1.0",
+  "description": "Framework-agnostic TypeScript SDK for ClawSwap cross-chain swaps",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "clawswap",
+    "cross-chain",
+    "swap",
+    "x402",
+    "ai-agents",
+    "web3",
+    "solana",
+    "ethereum",
+    "arbitrum"
+  ],
+  "author": "ClawSwap",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@x402/fetch": "^2.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@x402/fetch": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}
