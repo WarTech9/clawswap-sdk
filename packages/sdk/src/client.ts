@@ -7,6 +7,7 @@ import type {
   WaitForSettlementOptions,
   Chain,
   Token,
+  SwapFeeResponse,
 } from './types';
 import { HttpClient } from './utils/http';
 import { poll, isTerminalStatus } from './utils/polling';
@@ -47,9 +48,6 @@ import { quoteRequestSchema, statusRequestSchema } from './schemas';
  */
 export class ClawSwapClient {
   private http: HttpClient;
-  private pairsCache: { data: any[], timestamp: number } | null = null;
-  private readonly PAIRS_CACHE_TTL = 3600000; // 1 hour
-
   constructor(config: ClawSwapConfig = {}) {
     this.http = new HttpClient(config);
   }
@@ -116,6 +114,14 @@ export class ClawSwapClient {
   }
 
   /**
+   * Get the current swap fee
+   * Free endpoint - no x402 payment required
+   */
+  async getSwapFee(): Promise<SwapFeeResponse> {
+    return this.http.get<SwapFeeResponse>('/api/swap/fee');
+  }
+
+  /**
    * Get list of supported chains
    * Free endpoint - cached for 1 hour
    */
@@ -146,52 +152,4 @@ export class ClawSwapClient {
     return token;
   }
 
-  /**
-   * Get supported token pairs
-   * Derived from chains and tokens - no dedicated endpoint yet
-   * Results are cached for 1 hour to reduce API calls
-   */
-  async getSupportedPairs(): Promise<
-    Array<{
-      sourceChain: string;
-      sourceToken: string;
-      destinationChain: string;
-      destinationToken: string;
-    }>
-  > {
-    // Return cached pairs if fresh
-    if (this.pairsCache && Date.now() - this.pairsCache.timestamp < this.PAIRS_CACHE_TTL) {
-      return this.pairsCache.data;
-    }
-
-    // Build fresh pairs
-    const chains = await this.getSupportedChains();
-    const pairs = [];
-
-    for (const sourceChain of chains) {
-      const sourceTokens = await this.getSupportedTokens(sourceChain.id);
-      for (const destChain of chains) {
-        if (sourceChain.id === destChain.id) continue;
-        const destTokens = await this.getSupportedTokens(destChain.id);
-
-        for (const sourceToken of sourceTokens) {
-          for (const destToken of destTokens) {
-            // Only add pairs with matching symbols (e.g., USDC -> USDC)
-            if (sourceToken.symbol === destToken.symbol) {
-              pairs.push({
-                sourceChain: sourceChain.id,
-                sourceToken: sourceToken.address,
-                destinationChain: destChain.id,
-                destinationToken: destToken.address,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Cache results
-    this.pairsCache = { data: pairs, timestamp: Date.now() };
-    return pairs;
-  }
 }

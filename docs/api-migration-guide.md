@@ -158,7 +158,7 @@ New error codes from internal quote fetching:
 
 - **OpenAPI Spec**: `GET /api/openapi`
 - **API Docs**: [CLAUDE.md](../CLAUDE.md#execute-endpoint-interface)
-- **Live Endpoint**: `https://api.clawswap.xyz/api/swap/execute`
+- **Live Endpoint**: `https://api.clawswap.dev/api/swap/execute`
 
 ---
 
@@ -326,7 +326,7 @@ New error codes from internal quote fetching:
 
 - **OpenAPI Spec**: `GET /api/openapi`
 - **API Docs**: [CLAUDE.md](../CLAUDE.md#execute-endpoint-interface)
-- **Live Endpoint**: `https://api.clawswap.xyz/api/swap/execute`
+- **Live Endpoint**: `https://api.clawswap.dev/api/swap/execute`
 
 ---
 

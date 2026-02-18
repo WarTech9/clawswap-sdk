@@ -1,5 +1,5 @@
 /**
- * Discovery commands - list supported chains, tokens, and pairs
+ * Discovery commands - list supported chains and tokens
  */
 
 import { Command } from 'commander';
@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import { config } from '../config.js';
 
 export const discoveryCommand = new Command('discovery')
-  .description('Discover supported chains, tokens, and pairs');
+  .description('Discover supported chains and tokens');
 
 // List chains
 discoveryCommand
@@ -62,27 +62,3 @@ discoveryCommand
     }
   });
 
-// List supported pairs
-discoveryCommand
-  .command('pairs')
-  .description('List all supported swap pairs')
-  .action(async () => {
-    try {
-      const client = new ClawSwapClient({ baseUrl: config.API_URL });
-
-      logger.info('Fetching supported pairs...');
-      const pairs = await client.getSupportedPairs();
-
-      logger.success(`Found ${pairs.length} supported pairs:`);
-      console.log();
-
-      pairs.forEach((pair) => {
-        console.log(`  ${pair.sourceChainId}:${pair.sourceTokenSymbol} → ${pair.destinationChainId}:${pair.destinationTokenSymbol}`);
-      });
-
-      console.log();
-    } catch (error) {
-      logger.error('Failed to fetch pairs:', error);
-      process.exit(1);
-    }
-  });

@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup src/index.ts --format esm --clean",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "e2e:api": "tsx e2e/api-direct.ts",
+    "e2e:sdk": "tsx e2e/sdk-integration.ts",
+    "e2e": "tsx e2e/api-direct.ts && tsx e2e/sdk-integration.ts"
   },
   "dependencies": {
     "@clawswap/sdk": "workspace:*",

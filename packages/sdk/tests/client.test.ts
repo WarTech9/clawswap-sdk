@@ -379,60 +379,6 @@ describe('ClawSwapClient', () => {
     });
   });
 
-  describe('getSupportedPairs', () => {
-    it('should derive pairs from chains and tokens', async () => {
-      const mockChains: Chain[] = [
-        {
-          id: 'solana',
-          name: 'Solana',
-          nativeCurrency: { symbol: 'SOL', decimals: 9 },
-        },
-        {
-          id: 'base',
-          name: 'Base',
-          nativeCurrency: { symbol: 'ETH', decimals: 18 },
-        },
-      ];
-
-      const mockSolanaTokens: Token[] = [
-        {
-          address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-          chainId: 'solana',
-        },
-      ];
-
-      const mockBaseTokens: Token[] = [
-        {
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-          chainId: 'base',
-        },
-      ];
-
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ chains: mockChains }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ tokens: mockSolanaTokens }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ tokens: mockBaseTokens }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ tokens: mockBaseTokens }) })
-        .mockResolvedValueOnce({ ok: true, json: async () => ({ tokens: mockSolanaTokens }) });
-
-      const result = await client.getSupportedPairs();
-
-      expect(result).toHaveLength(2);
-      expect(result).toContainEqual({
-        sourceChain: 'solana',
-        sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        destinationChain: 'base',
-        destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      });
-    });
-  });
-
   describe('timeout handling', () => {
     it.skip('should timeout long requests', async () => {
       mockFetch.mockImplementation(
@@ -459,5 +405,35 @@ describe('ClawSwapClient', () => {
         recipientAddress: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
       })).rejects.toThrow('Request timed out');
     }, 10000);
+  });
+
+  describe('getSwapFee', () => {
+    it('should return fee response', async () => {
+      const mockFee = {
+        amount: 0.1,
+        currency: 'USDC',
+        network: 'solana',
+        description: 'x402 payment required per swap execution',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockFee,
+      });
+
+      const result = await client.getSwapFee();
+
+      expect(result).toEqual(mockFee);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.clawswap.dev/api/swap/fee',
+        expect.objectContaining({ method: 'GET' })
+      );
+    });
+
+    it('should propagate network errors', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(client.getSwapFee()).rejects.toThrow();
+    });
   });
 });

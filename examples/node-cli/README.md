@@ -2,290 +2,143 @@
 
 Command-line interface for executing cross-chain swaps using the ClawSwap SDK.
 
-## Installation
+## Setup
 
-From the root of the monorepo:
-
-```bash
-pnpm install
-pnpm build
-```
-
-Or from this directory:
+From the monorepo root:
 
 ```bash
-cd examples/node-cli
-pnpm install
+pnpm install && pnpm build
 ```
 
-## Configuration
-
-Create a `.env` file (copy from `.env.example`):
+Create a `.env` file:
 
 ```bash
 # Required for swap execution
-EVM_PRIVATE_KEY=0x...
+SOLANA_PRIVATE_KEY=<base58-encoded-key>
 
-# Optional: Override API URL
+# Optional overrides
 CLAWSWAP_API_URL=https://api.clawswap.dev
-
-# Optional: Test mode
-TEST_MODE=dry-run  # mock | dry-run | full
 ```
 
-## Usage
+## CLI Commands
 
-### Discovery Commands
+### Discovery
 
-List supported chains:
 ```bash
 pnpm dev -- discovery chains
-```
-
-List tokens for a specific chain:
-```bash
 pnpm dev -- discovery tokens solana
 pnpm dev -- discovery tokens base
 ```
 
-List all supported swap pairs:
-```bash
-pnpm dev -- discovery pairs
-```
+### Quote
 
-### Get Quote
-
-Get a quote for a swap:
 ```bash
 pnpm dev -- quote \
   --from solana:USDC \
   --to base:USDC \
   --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --recipient 0x07150e919b4de5fd6a63de1f9384828396f25fdc
+  --sender <solana-address> \
+  --recipient <evm-address>
 ```
 
-With full token addresses and custom slippage:
-```bash
-pnpm dev -- quote \
-  --from solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-  --to base:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 \
-  --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --recipient 0x07150e919b4de5fd6a63de1f9384828396f25fdc \
-  --slippage 0.01
-```
+Quotes expire in 30 seconds.
 
-**Note:** Quotes expire in 30 seconds.
+### Swap
 
-### Execute Swap
+Mock mode (no wallet):
 
-#### Mock Mode (No Wallet)
-Test the swap flow without actual execution:
 ```bash
 pnpm dev -- swap \
-  --from solana:USDC \
-  --to base:USDC \
+  --from solana:USDC --to base:USDC \
   --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --destination 0x07150e919b4de5fd6a63de1f9384828396f25fdc \
+  --sender <solana-address> \
+  --destination <evm-address> \
   --mock
 ```
 
-#### Real Swap (Requires Wallet)
-Execute an actual cross-chain swap:
+Real swap (requires `SOLANA_PRIVATE_KEY`):
+
 ```bash
-# Make sure EVM_PRIVATE_KEY is set in .env
 pnpm dev -- swap \
-  --from solana:USDC \
-  --to base:USDC \
+  --from solana:USDC --to base:USDC \
   --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --destination 0x07150e919b4de5fd6a63de1f9384828396f25fdc
+  --sender <solana-address> \
+  --destination <evm-address>
 ```
 
-This will:
-1. Get a quote
-2. Execute the swap (pays $0.50 USDC via x402)
-3. Monitor status until completion
+### Status
 
-### Check Swap Status
-
-Check status once:
 ```bash
 pnpm dev -- status <swapId>
-```
-
-Watch for status updates until completion:
-```bash
 pnpm dev -- status <swapId> --watch
 ```
 
 ## Token Shortcuts
 
-The CLI supports shortcuts for common tokens:
-
 | Shortcut | Solana | Base |
 |----------|--------|------|
-| USDC     | EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v | 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 |
-| USDT     | Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB | - |
+| USDC | EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v | 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 |
+| USDT | Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB | — |
 
-Examples:
-```bash
-# Using shortcuts
-pnpm dev -- quote --from solana:USDC --to base:USDC --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --recipient 0x07150e919b4de5fd6a63de1f9384828396f25fdc
+## E2E Tests
 
-# Using full addresses
-pnpm dev -- quote \
-  --from solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-  --to base:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 \
-  --amount 1000000 \
-  --sender 83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri \
-  --recipient 0x07150e919b4de5fd6a63de1f9384828396f25fdc
-```
+Two test suites in `e2e/`:
 
-## Error Handling
+- **`api-direct.ts`** — tests the HTTP API directly with raw fetch + x402
+- **`sdk-integration.ts`** — tests the same flow via `ClawSwapClient`
 
-The CLI provides user-friendly error messages:
+Both have 5 sections:
 
-### Quote Expired
-```
-✗ Swap failed: Quote has expired
-  Tip: Quotes expire in 30 seconds
-```
+| Section | What it tests | Requires |
+|---------|--------------|----------|
+| 1 — Discovery | `/api/chains`, `/api/tokens/:chain` | nothing |
+| 2 — Quote | `/api/swap/quote` | nothing |
+| 3 — Execute | `/api/swap/execute` with x402 payment | `SOLANA_PRIVATE_KEY` |
+| 4 — Status | `/api/swap/:id/status` | `SOLANA_PRIVATE_KEY` |
+| 5 — Sign & Submit | Sign + submit Solana tx, poll until settlement | `SOLANA_PRIVATE_KEY` |
 
-### Insufficient Liquidity
-```
-✗ Failed to get quote: Insufficient liquidity for this swap
-```
+### Running
 
-### Payment Required
-```
-✗ Payment failed or insufficient balance
-  Check that your wallet has $0.50 USDC on Base
-```
-
-### Network Error
-```
-✗ Failed to get quote: Request timed out
-```
-
-## Running from Root
-
-From the monorepo root, use the convenience script:
+Free run (sections 1–2 only, no key needed):
 
 ```bash
-pnpm example:node -- discovery chains
-pnpm example:node -- quote --from solana:USDC --to base:USDC --amount 1000000 \
-  --sender <address> --recipient <address>
-pnpm example:node -- swap --from solana:USDC --to base:USDC --amount 1000000 \
-  --sender <address> --destination <address> --mock
+pnpm e2e:api
+pnpm e2e:sdk
 ```
 
-## Example Output
+Full run with payment (sections 1–5, submits transaction by default):
 
-### Quote Command
-```
-ℹ Fetching quote...
-✓ Quote received:
-
-  Quote ID: clawswap_quote_abc123
-  Source Amount: 1000000
-  Destination Amount: 998500
-  Exchange Rate: 0.9985
-  Bridge Fee: 500
-  Protocol Fee: 1000
-  Total Fee (USD): $0.50
-  Expires In: 30s
-  Expires At: 2026-02-12T10:30:00.000Z
-
-⚠ Note: This quote expires in 30 seconds
-```
-
-### Swap Command (Mock)
-```
-ℹ Setting up x402 payment...
-✓ x402 payment configured
-
-ℹ Step 1/3: Getting quote...
-✓ Quote received: 998500 tokens
-⚠ Quote expires in 30 seconds
-
-ℹ Step 2/3: Executing swap...
-⚠ [MOCK MODE] Skipping actual swap execution
-ℹ In real mode, this would:
-  1. Pay $0.50 USDC via x402
-  2. Initiate the cross-chain swap
-  3. Monitor status until completion
-```
-
-### Swap Command (Real)
-```
-ℹ Step 1/3: Getting quote...
-✓ Quote received: 998500 tokens
-
-ℹ Step 2/3: Executing swap...
-✓ Swap initiated!
-
-  Swap ID: clawswap_swap_xyz789
-  Status: pending
-  Source Amount: 1000000
-  Destination Amount: 998500
-
-ℹ Step 3/3: Monitoring swap status...
-ℹ This may take several minutes depending on network congestion
-
-ℹ Status: initiated
-  solana: 3X5Y... [confirmed]
-    https://solscan.io/tx/3X5Y...
-
-ℹ Status: bridging
-  solana: 3X5Y... [confirmed]
-
-ℹ Status: settling
-  base: 0x7a8b... [pending]
-
-ℹ Status: completed
-  solana: 3X5Y... [confirmed]
-  base: 0x7a8b... [confirmed]
-
-✓ ✨ Swap completed successfully!
-
-  Swap ID: clawswap_swap_xyz789
-  Status: completed
-  Source Amount: 1000000
-  Destination Amount: 998500
-  Destination Address: 0xYourAddress
-```
-
-## Building for Production
-
-Build the CLI:
 ```bash
-pnpm build
+SOLANA_PRIVATE_KEY=<base58-key> pnpm e2e:api
 ```
 
-Run the built version:
+Skip transaction submission (sections 1–4 only):
+
 ```bash
-pnpm start -- discovery chains
+SOLANA_PRIVATE_KEY=<base58-key> SKIP_SUBMIT=true pnpm e2e:api
 ```
 
-Or install globally:
+Run both suites:
+
 ```bash
-npm link
-clawswap-cli discovery chains
+SOLANA_PRIVATE_KEY=<base58-key> pnpm e2e
 ```
 
-## Troubleshooting
+### Environment Variables
 
-See [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for common issues and solutions.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SOLANA_PRIVATE_KEY` | For sections 3–5 | Base58-encoded Solana private key |
+| `RECIPIENT_ADDRESS` | No | EVM address to receive funds (default: test address) |
+| `SKIP_SUBMIT` | No | Set to `true` to skip signing and submitting the transaction |
+| `CLAWSWAP_API_URL` | No | Override API base URL (default: `https://api.clawswap.dev`) |
+
+> **Note:** If your `.env` overrides `CLAWSWAP_API_URL` to a local server, the e2e tests will hit that instead of production. Set it to `https://api.clawswap.dev` to run against the live API.
 
 ## Development
 
-The CLI is built with:
-- [Commander.js](https://github.com/tj/commander.js) - CLI framework
-- [Chalk](https://github.com/chalk/chalk) - Terminal colors
-- [Viem](https://viem.sh) - EVM wallet integration
-- [@x402/fetch](https://x402.org) - Payment protocol integration
+Built with:
+- [Commander.js](https://github.com/tj/commander.js) — CLI framework
+- [Chalk](https://github.com/chalk/chalk) — terminal colors
+- [Viem](https://viem.sh) — EVM wallet integration
+- [@x402/fetch](https://x402.org) — x402 payment protocol

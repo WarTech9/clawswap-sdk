@@ -9,6 +9,7 @@ export type {
   ExecuteSwapResponse,
   SwapResponse, // Alias for ExecuteSwapResponse (backwards compatibility)
   StatusResponse,
+  SwapFeeResponse,
   WaitForSettlementOptions,
   Chain,
   Token,

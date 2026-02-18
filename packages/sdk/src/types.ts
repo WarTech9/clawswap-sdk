@@ -18,6 +18,17 @@ export interface Chain {
   isTestnet?: boolean;
 }
 
+export interface SwapFeeResponse {
+  /** Fee amount in the specified currency */
+  amount: number;
+  /** Fee currency (e.g., "USDC") */
+  currency: string;
+  /** Network the fee is charged on (e.g., "solana") */
+  network: string;
+  /** Human-readable description of what the fee covers */
+  description: string;
+}
+
 export interface Token {
   address: string;
   symbol: string;
@@ -57,33 +68,18 @@ export interface StatusRequest {
 // ============================================================================
 
 export interface QuoteResponse {
-  id: string; // Changed from quoteId to match API
+  quoteId: string;
   sourceAmount: string;
   destinationAmount: string;
   fees: {
-    operatingExpenses: string;
-    networkFee: string;
-    totalFeeUsd: number;
-    relayerFee: string;
-    relayerFeeFormatted: string;
-    gasSolLamports: string;
-    gasSolFormatted: string;
-    gasUsd: string;
+    bridgeFeeUsd: number;
+    x402FeeUsd: number;
+    gasReimbursementEstimatedUsd: number;
+    totalEstimatedFeeUsd: number;
   };
   estimatedTimeSeconds: number;
   expiresAt: string; // ISO 8601 timestamp
   expiresIn: number; // Seconds until expiry (30s)
-  transactionData: {
-    instructions: Array<{
-      programId: string;
-      keys: Array<{
-        pubkey: string;
-        isSigner: boolean;
-        isWritable: boolean;
-      }>;
-      data: string;
-    }>;
-  };
 }
 
 /**
@@ -93,18 +89,31 @@ export interface QuoteResponse {
 export interface ExecuteSwapResponse {
   /** Base64-encoded partially-signed Solana transaction */
   transaction: string;
-  /** Transaction metadata */
-  metadata: {
-    /** Order ID for tracking swap status via /api/swap/:id/status */
-    orderId: string;
-    /** Token amount being sent to server for gas reimbursement (smallest unit) */
-    paymentAmount: string;
-    /** Gas cost in SOL lamports that server is paying */
-    gasLamports: string;
-    /** Whether the source token is Token-2022 */
-    isToken2022: boolean;
-    /** Whether memo instruction was added */
-    requiresMemo?: boolean;
+  /** Order ID for tracking swap status via /api/swap/:id/status */
+  orderId: string;
+  /** Whether the source token is Token-2022 */
+  isToken2022: boolean;
+  /** Detailed fee and amount accounting */
+  accounting: {
+    x402Fee: {
+      amountUsd: number;
+      currency: string;
+      recipient: string;
+      note: string;
+    };
+    gasReimbursement: {
+      amountRaw: string;
+      amountFormatted: string;
+      tokenMint: string;
+      recipient: string;
+      note: string;
+    };
+    bridgeFee: {
+      estimatedUsd: number;
+      note: string;
+    };
+    sourceAmount: string;
+    destinationAmount: string;
   };
 }
 
@@ -183,6 +192,7 @@ export type ErrorCode =
   | 'PRICE_FEED_UNAVAILABLE'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
+  | 'TOKEN_2022_FEE_ERROR'
   | 'UNKNOWN_ERROR';
 
 export interface ApiError {

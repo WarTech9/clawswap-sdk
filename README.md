@@ -155,5 +155,5 @@ Contributions welcome! Please read our [contributing guidelines](./CONTRIBUTING.
 ## Support
 
 - [GitHub Issues](https://github.com/clawswap/clawswap-sdk/issues)
-- [Documentation](https://docs.clawswap.xyz)
-- [Discord](https://discord.gg/clawswap)
+- [Documentation](https://clawswap.dev/docs)
+- [X](https://x.com/clawswap_dev)

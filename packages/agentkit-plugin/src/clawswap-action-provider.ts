@@ -103,12 +103,12 @@ export class ClawSwapActionProvider {
 
     return JSON.stringify(
       {
-        id: quote.id,
+        quoteId: quote.quoteId,
         sourceAmount: quote.sourceAmount,
         destinationAmount: quote.destinationAmount,
-        totalFeeUsd: quote.fees.totalFeeUsd,
+        totalEstimatedFeeUsd: quote.fees.totalEstimatedFeeUsd,
         expiresIn: quote.expiresIn,
-        message: `Quote received: ${quote.destinationAmount} tokens on ${input.destinationChain}. Fee: $${quote.fees.totalFeeUsd}. Expires in ${quote.expiresIn}s.`,
+        message: `Quote received: ${quote.destinationAmount} tokens on ${input.destinationChain}. Fee: $${quote.fees.totalEstimatedFeeUsd}. Expires in ${quote.expiresIn}s.`,
       },
       null,
       2
@@ -131,25 +131,23 @@ export class ClawSwapActionProvider {
       slippageTolerance: input.slippageTolerance,
     });
 
-    // Get token info for decimals
-    const sourceToken = await this.client.getTokenInfo(
-      input.sourceChain,
-      input.sourceToken
-    );
-
-    // Execute swap with full quote and context
+    // Execute swap
     const swap = await this.client.executeSwap({
-      quote: quote,
-      userWallet: input.senderAddress,
-      sourceTokenMint: input.sourceToken,
-      sourceTokenDecimals: sourceToken.decimals,
+      sourceChainId: input.sourceChain,
+      sourceTokenAddress: input.sourceToken,
+      destinationChainId: input.destinationChain,
+      destinationTokenAddress: input.destinationToken,
+      amount: input.amount,
+      senderAddress: input.senderAddress,
+      recipientAddress: input.recipientAddress,
+      slippageTolerance: input.slippageTolerance,
     });
 
     return JSON.stringify(
       {
-        swapId: swap.swapId,
-        status: swap.status,
-        message: `Swap initiated! ID: ${swap.swapId}. Status: ${swap.status}. Use clawswap_get_status to check progress.`,
+        orderId: swap.orderId,
+        isToken2022: swap.isToken2022,
+        message: `Swap initiated! Order ID: ${swap.orderId}. Use clawswap_get_status to check progress.`,
       },
       null,
       2
@@ -164,10 +162,11 @@ export class ClawSwapActionProvider {
 
     return JSON.stringify(
       {
-        swapId: status.swapId,
+        orderId: status.orderId,
         status: status.status,
         destinationAmount: status.destinationAmount,
-        transactions: status.transactions,
+        sourceTxHash: status.sourceTxHash,
+        destinationTxHash: status.destinationTxHash,
         message: `Swap status: ${status.status}`,
       },
       null,
@@ -188,12 +187,13 @@ export class ClawSwapActionProvider {
 
     return JSON.stringify(
       {
-        swapId: result.swapId,
+        orderId: result.orderId,
         status: result.status,
         destinationAmount: result.destinationAmount,
-        transactions: result.transactions,
+        sourceTxHash: result.sourceTxHash,
+        destinationTxHash: result.destinationTxHash,
         message:
-          result.status === 'completed'
+          result.status === 'completed' || result.status === 'fulfilled'
             ? `Swap completed successfully! Received ${result.destinationAmount} tokens.`
             : `Swap ${result.status}. ${result.failureReason || ''}`,
       },
@@ -213,7 +213,7 @@ export class ClawSwapActionProvider {
         chains: chains.map((c) => ({
           id: c.id,
           name: c.name,
-          nativeToken: c.nativeToken.symbol,
+          nativeToken: c.nativeCurrency.symbol,
         })),
         message: `${chains.length} chains supported: ${chains.map((c) => c.name).join(', ')}`,
       },

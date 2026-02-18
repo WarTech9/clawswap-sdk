@@ -105,12 +105,12 @@ export class ClawSwapPlugin {
     });
 
     return {
-      id: quote.id,
+      quoteId: quote.quoteId,
       sourceAmount: quote.sourceAmount,
       destinationAmount: quote.destinationAmount,
-      totalFeeUsd: quote.fees.totalFeeUsd,
+      totalEstimatedFeeUsd: quote.fees.totalEstimatedFeeUsd,
       expiresIn: quote.expiresIn,
-      message: `Quote: ${quote.destinationAmount} tokens. Fee: $${quote.fees.totalFeeUsd}. Expires in ${quote.expiresIn}s.`,
+      message: `Quote: ${quote.destinationAmount} tokens. Fee: $${quote.fees.totalEstimatedFeeUsd}. Expires in ${quote.expiresIn}s.`,
     };
   }
 
@@ -127,24 +127,22 @@ export class ClawSwapPlugin {
       slippageTolerance: parameters.slippageTolerance,
     });
 
-    // Get token info for decimals
-    const sourceToken = await this.client.getTokenInfo(
-      parameters.sourceChain,
-      parameters.sourceToken
-    );
-
-    // Execute swap with full quote and context
+    // Execute swap
     const swap = await this.client.executeSwap({
-      quote: quote,
-      userWallet: parameters.senderAddress,
-      sourceTokenMint: parameters.sourceToken,
-      sourceTokenDecimals: sourceToken.decimals,
+      sourceChainId: parameters.sourceChain,
+      sourceTokenAddress: parameters.sourceToken,
+      destinationChainId: parameters.destinationChain,
+      destinationTokenAddress: parameters.destinationToken,
+      amount: parameters.amount,
+      senderAddress: parameters.senderAddress,
+      recipientAddress: parameters.recipientAddress,
+      slippageTolerance: parameters.slippageTolerance,
     });
 
     return {
-      swapId: swap.swapId,
-      status: swap.status,
-      message: `Swap initiated! ID: ${swap.swapId}. Status: ${swap.status}.`,
+      orderId: swap.orderId,
+      isToken2022: swap.isToken2022,
+      message: `Swap initiated! Order ID: ${swap.orderId}.`,
     };
   }
 
@@ -152,10 +150,11 @@ export class ClawSwapPlugin {
     const status = await this.client.getStatus(parameters.swapId);
 
     return {
-      swapId: status.swapId,
+      orderId: status.orderId,
       status: status.status,
       destinationAmount: status.destinationAmount,
-      transactions: status.transactions,
+      sourceTxHash: status.sourceTxHash,
+      destinationTxHash: status.destinationTxHash,
       message: `Swap status: ${status.status}`,
     };
   }
@@ -166,11 +165,11 @@ export class ClawSwapPlugin {
     });
 
     return {
-      swapId: result.swapId,
+      orderId: result.orderId,
       status: result.status,
       destinationAmount: result.destinationAmount,
       message:
-        result.status === 'completed'
+        result.status === 'completed' || result.status === 'fulfilled'
           ? `Swap completed! Received ${result.destinationAmount} tokens.`
           : `Swap ${result.status}.`,
     };
@@ -183,7 +182,7 @@ export class ClawSwapPlugin {
       chains: chains.map((c) => ({
         id: c.id,
         name: c.name,
-        nativeToken: c.nativeToken.symbol,
+        nativeToken: c.nativeCurrency.symbol,
       })),
       message: `${chains.length} chains supported`,
     };

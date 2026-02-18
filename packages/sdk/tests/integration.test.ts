@@ -60,22 +60,6 @@ describe('Integration Tests', () => {
       expect(token.chainId).toBe('base');
     });
 
-    it('should derive supported pairs', async () => {
-      const pairs = await client.getSupportedPairs();
-
-      expect(Array.isArray(pairs)).toBe(true);
-      expect(pairs.length).toBeGreaterThan(0);
-
-      // Verify pair structure
-      const pair = pairs[0];
-      expect(pair).toHaveProperty('sourceChain');
-      expect(pair).toHaveProperty('sourceToken');
-      expect(pair).toHaveProperty('destinationChain');
-      expect(pair).toHaveProperty('destinationToken');
-
-      // Source and destination chains should be different
-      expect(pair.sourceChain).not.toBe(pair.destinationChain);
-    });
   });
 
   describe('Quote Endpoint (Free)', () => {

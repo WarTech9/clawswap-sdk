@@ -53,14 +53,13 @@ export const quoteCommand = new Command('quote')
 
       logger.success('Quote received:');
       logger.table({
-        'Quote ID': quote.id,
+        'Quote ID': quote.quoteId,
         'Source Amount': quote.sourceAmount,
         'Destination Amount': quote.destinationAmount,
-        'Operating Expenses': quote.fees.operatingExpenses,
-        'Network Fee': quote.fees.networkFee,
-        'Relayer Fee': quote.fees.relayerFeeFormatted,
-        'Gas Fee (SOL)': quote.fees.gasSolFormatted,
-        'Total Fee (USD)': `$${quote.fees.totalFeeUsd}`,
+        'Bridge Fee (USD)': `$${quote.fees.bridgeFeeUsd}`,
+        'x402 Fee (USD)': `$${quote.fees.x402FeeUsd}`,
+        'Gas Reimbursement (est.)': `$${quote.fees.gasReimbursementEstimatedUsd}`,
+        'Total Fee (USD)': `$${quote.fees.totalEstimatedFeeUsd}`,
         'Estimated Time': `${quote.estimatedTimeSeconds}s`,
         'Expires In': `${quote.expiresIn}s`,
         'Expires At': new Date(quote.expiresAt).toISOString(),

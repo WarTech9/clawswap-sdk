@@ -145,8 +145,8 @@ export const swapCommand = new Command('swap')
       logger.success(`Quote received: ${quote.destinationAmount} tokens`);
       logger.warn(`Quote expires in ${quote.expiresIn} seconds`);
       logger.table({
-        'Quote ID': quote.id,
-        'Total Fee': `$${quote.fees.totalFeeUsd}`,
+        'Quote ID': quote.quoteId,
+        'Total Fee': `$${quote.fees.totalEstimatedFeeUsd}`,
         'Estimated Time': `${quote.estimatedTimeSeconds}s`,
       });
 
@@ -177,11 +177,11 @@ export const swapCommand = new Command('swap')
 
       logger.success(`Swap transaction received!`);
       logger.table({
-        'Order ID': executeResponse.metadata.orderId,
+        'Order ID': executeResponse.orderId,
         'Transaction Size': `${executeResponse.transaction.length} bytes`,
-        'Payment Amount': executeResponse.metadata.paymentAmount,
-        'Gas (lamports)': executeResponse.metadata.gasLamports,
-        'Is Token-2022': executeResponse.metadata.isToken2022 ? 'Yes' : 'No',
+        'Gas Reimbursement': executeResponse.accounting.gasReimbursement.amountFormatted,
+        'x402 Fee (USD)': `$${executeResponse.accounting.x402Fee.amountUsd}`,
+        'Is Token-2022': executeResponse.isToken2022 ? 'Yes' : 'No',
       });
 
       console.log();
@@ -298,7 +298,7 @@ export const swapCommand = new Command('swap')
       logger.info('This may take several minutes depending on network congestion');
       console.log();
 
-      const result = await client.waitForSettlement(executeResponse.metadata.orderId, {
+      const result = await client.waitForSettlement(executeResponse.orderId, {
         timeout: 300000, // 5 minutes
         interval: 3000, // 3 seconds
         onStatusUpdate: (status) => {
