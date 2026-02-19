@@ -1,7 +1,7 @@
 {
   "name": "@clawswap/sdk",
   "version": "0.0.1",
-  "description": "Framework-agnostic TypeScript SDK for ClawSwap cross-chain swaps",
+  "description": "Gasless Solana → Base cross-chain swaps for AI agents via x402 micropayments. $0.50 flat fee, no API key, no gas. Base → Solana coming in days.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -26,26 +26,33 @@
     "clean": "rm -rf dist"
   },
   "keywords": [
-    "clawswap",
+    "x402",
+    "solana",
+    "base",
     "cross-chain",
     "swap",
-    "x402",
     "ai-agents",
-    "web3",
-    "solana",
-    "ethereum",
-    "arbitrum"
+    "goat-sdk",
+    "usdc",
+    "defi",
+    "bridge",
+    "elizaos",
+    "eliza",
+    "elizaos-plugins",
+    "moltbook",
+    "typescript",
+    "sdk"
   ],
   "author": "ClawSwap",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/clawswap/clawswap-sdk.git",
+    "url": "https://github.com/WarTech9/clawswap-sdk.git",
     "directory": "packages/sdk"
   },
-  "homepage": "https://github.com/clawswap/clawswap-sdk#readme",
+  "homepage": "https://clawswap.dev",
   "bugs": {
-    "url": "https://github.com/clawswap/clawswap-sdk/issues"
+    "url": "https://github.com/WarTech9/clawswap-sdk/issues"
   },
   "dependencies": {
     "zod": "^3.22.4"

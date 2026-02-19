@@ -34,9 +34,15 @@ const RECIPIENT_ADDRESS = process.env.RECIPIENT_ADDRESS ?? '0xd8dA6BF26964aF9D7e
 const SKIP_SUBMIT = process.env.SKIP_SUBMIT === 'true';
 
 const SOLANA_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const SOLANA_USDT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
 const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const BASE_USDT = '0xfde4c96c8593536e31f229ea8f37b2ada2699bb2';
 const TEST_SENDER = '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri';
-const SWAP_AMOUNT = '1000000'; // 1 USDC (6 decimals) — change to test different amounts
+const SWAP_AMOUNT = '1000000'; // 1 unit (6 decimals) — works for both USDC and USDT
+
+// Execute test pair — override via env vars to test other pairs
+const EXEC_SOURCE_TOKEN = process.env.SOURCE_TOKEN ?? SOLANA_USDC;
+const EXEC_DEST_TOKEN = process.env.DEST_TOKEN ?? BASE_USDC;
 
 // ─── Assertion helpers ──────────────────────────────────────────────────────
 
@@ -108,14 +114,19 @@ async function testDiscovery(client: ClawSwapClient): Promise<void> {
 
 // ─── Section 2: Quote ────────────────────────────────────────────────────────
 
-async function testQuote(client: ClawSwapClient): Promise<QuoteResponse> {
-  section('Section 2 — Quote (free, no payment)');
+async function testQuoteForPair(
+  client: ClawSwapClient,
+  sourceTokenAddress: string,
+  destinationTokenAddress: string,
+  pairLabel: string,
+): Promise<QuoteResponse> {
+  section(`Section 2 — Quote: ${pairLabel} (free, no payment)`);
 
   const quote: QuoteResponse = await client.getQuote({
     sourceChainId: 'solana',
-    sourceTokenAddress: SOLANA_USDC,
+    sourceTokenAddress,
     destinationChainId: 'base',
-    destinationTokenAddress: BASE_USDC,
+    destinationTokenAddress,
     amount: SWAP_AMOUNT,
     senderAddress: TEST_SENDER,
     recipientAddress: RECIPIENT_ADDRESS,
@@ -138,7 +149,7 @@ async function testQuote(client: ClawSwapClient): Promise<QuoteResponse> {
   assert(quote.fees.totalEstimatedFeeUsd > 0, `Total fee > 0 (got ${quote.fees.totalEstimatedFeeUsd})`);
 
   console.log(`\n  Quote ID: ${quote.quoteId}`);
-  console.log(`  Destination: ${destAmount / 1e6} USDC`);
+  console.log(`  Destination amount: ${destAmount / 1e6}`);
   console.log(`  Total Fee: $${quote.fees.totalEstimatedFeeUsd}`);
   console.log(`  Expires in: ${quote.expiresIn}s`);
 
@@ -188,11 +199,14 @@ async function testExecute(): Promise<ExecuteSwapResponse | null> {
 
   console.log('  Calling client.executeSwap() (x402 payment will be deducted)...');
 
+  const execPairLabel = `${EXEC_SOURCE_TOKEN === SOLANA_USDC ? 'USDC' : 'USDT'} (Sol) → ${EXEC_DEST_TOKEN === BASE_USDC ? 'USDC' : 'USDT'} (Base)`;
+  console.log(`  Pair: ${execPairLabel}`);
+
   const response: ExecuteSwapResponse = await client.executeSwap({
     sourceChainId: 'solana',
-    sourceTokenAddress: SOLANA_USDC,
+    sourceTokenAddress: EXEC_SOURCE_TOKEN,
     destinationChainId: 'base',
-    destinationTokenAddress: BASE_USDC,
+    destinationTokenAddress: EXEC_DEST_TOKEN,
     amount: SWAP_AMOUNT,
     senderAddress,
     recipientAddress: RECIPIENT_ADDRESS,
@@ -326,7 +340,10 @@ async function main(): Promise<void> {
 
   try {
     await testDiscovery(freeClient);
-    await testQuote(freeClient);
+    // Quote tests — free, no payment required
+    await testQuoteForPair(freeClient, SOLANA_USDC, BASE_USDC, 'USDC (Sol) → USDC (Base)');
+    await testQuoteForPair(freeClient, SOLANA_USDC, BASE_USDT, 'USDC (Sol) → USDT (Base)');
+    await testQuoteForPair(freeClient, SOLANA_USDT, BASE_USDC, 'USDT (Sol) → USDC (Base)');
 
     const executeResult = await testExecute();
 

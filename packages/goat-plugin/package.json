@@ -1,7 +1,7 @@
 {
   "name": "@clawswap/goat-plugin",
   "version": "0.1.0",
-  "description": "GOAT SDK plugin for ClawSwap cross-chain swaps",
+  "description": "GOAT SDK plugin for ClawSwap - Gasless Solana → Base cross-chain swaps via x402. $0.50 flat fee, no API key, no gas.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -25,13 +25,28 @@
     "clean": "rm -rf dist"
   },
   "keywords": [
-    "clawswap",
-    "goat",
+    "x402",
+    "solana",
+    "base",
     "cross-chain",
-    "ai-agents"
+    "swap",
+    "ai-agents",
+    "goat-sdk",
+    "goat",
+    "usdc",
+    "defi",
+    "bridge",
+    "typescript",
+    "plugin"
   ],
   "author": "ClawSwap",
   "license": "MIT",
+  "homepage": "https://clawswap.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WarTech9/clawswap-sdk.git",
+    "directory": "packages/goat-plugin"
+  },
   "dependencies": {
     "@clawswap/sdk": "workspace:*",
     "zod": "^3.22.4"

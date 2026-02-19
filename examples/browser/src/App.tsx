@@ -77,7 +77,7 @@ export function App() {
 
       <footer className="footer">
         <p>
-          Powered by <a href="https://github.com/clawswap/clawswap-sdk" target="_blank">ClawSwap SDK</a>
+          Powered by <a href="https://github.com/WarTech9/clawswap-sdk" target="_blank">ClawSwap SDK</a>
         </p>
       </footer>
     </div>

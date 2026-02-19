@@ -179,4 +179,4 @@ See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common issues and solutions.
 
 - [ClawSwap SDK Documentation](../packages/sdk/README.md)
 - [API Documentation](https://docs.clawswap.dev)
-- [GitHub Issues](https://github.com/clawswap/clawswap-sdk/issues)
+- [GitHub Issues](https://github.com/WarTech9/clawswap-sdk/issues)
