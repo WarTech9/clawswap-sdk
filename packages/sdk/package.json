@@ -21,7 +21,9 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/integration.test.ts",
+    "test:integration": "vitest run tests/integration.test.ts",
+    "test:all": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
@@ -33,7 +35,6 @@
     "cross-chain",
     "swap",
     "ai-agents",
-    "goat-sdk",
     "usdc",
     "defi",
     "bridge",
