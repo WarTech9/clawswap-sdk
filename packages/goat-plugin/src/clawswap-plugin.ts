@@ -115,19 +115,7 @@ export class ClawSwapPlugin {
   }
 
   async executeSwap(parameters: ExecuteSwapParameters) {
-    // First, get a quote
-    const quote = await this.client.getQuote({
-      sourceChainId: parameters.sourceChain,
-      sourceTokenAddress: parameters.sourceToken,
-      destinationChainId: parameters.destinationChain,
-      destinationTokenAddress: parameters.destinationToken,
-      amount: parameters.amount,
-      senderAddress: parameters.senderAddress,
-      recipientAddress: parameters.recipientAddress,
-      slippageTolerance: parameters.slippageTolerance,
-    });
-
-    // Execute swap
+    // Execute swap directly - API fetches fresh quote internally
     const swap = await this.client.executeSwap({
       sourceChainId: parameters.sourceChain,
       sourceTokenAddress: parameters.sourceToken,
@@ -142,12 +130,16 @@ export class ClawSwapPlugin {
     return {
       orderId: swap.orderId,
       isToken2022: swap.isToken2022,
-      message: `Swap initiated! Order ID: ${swap.orderId}.`,
+      message: `Swap initiated successfully! Order ID: ${swap.orderId}. ${
+        swap.isToken2022
+          ? 'Note: This is a Token-2022 with transfer fees.'
+          : ''
+      }`,
     };
   }
 
   async getStatus(parameters: GetStatusParameters) {
-    const status = await this.client.getStatus(parameters.swapId);
+    const status = await this.client.getStatus(parameters.orderId);
 
     return {
       orderId: status.orderId,
@@ -160,7 +152,7 @@ export class ClawSwapPlugin {
   }
 
   async waitForSettlement(parameters: WaitForSettlementParameters) {
-    const result = await this.client.waitForSettlement(parameters.swapId, {
+    const result = await this.client.waitForSettlement(parameters.orderId, {
       timeout: (parameters.timeoutSeconds || 300) * 1000,
     });
 

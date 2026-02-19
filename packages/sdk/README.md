@@ -14,7 +14,8 @@ pnpm add @clawswap/sdk @x402/fetch
 
 ```typescript
 import { ClawSwapClient } from '@clawswap/sdk';
-import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { wrapFetchWithPayment } from '@x402/fetch';
+import { x402Client } from '@x402/core/client';
 import { registerExactSvmScheme } from '@x402/svm/exact/client';
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';

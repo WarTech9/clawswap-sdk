@@ -1,6 +1,6 @@
 {
   "name": "@clawswap/sdk",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Gasless Solana → Base cross-chain swaps for AI agents via x402 micropayments. $0.50 flat fee, no API key, no gas. Base → Solana coming in days.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -23,7 +23,8 @@
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },
   "keywords": [
     "x402",

@@ -107,16 +107,16 @@ describe('Validation Schemas', () => {
   });
 
   describe('statusRequestSchema', () => {
-    it('should validate swap ID', () => {
-      const result = statusRequestSchema.parse({ swapId: 'swap-123' });
-      expect(result.swapId).toBe('swap-123');
+    it('should validate order ID', () => {
+      const result = statusRequestSchema.parse({ orderId: 'order-123' });
+      expect(result.orderId).toBe('order-123');
     });
 
-    it('should reject empty swap ID', () => {
-      expect(() => statusRequestSchema.parse({ swapId: '' })).toThrow();
+    it('should reject empty order ID', () => {
+      expect(() => statusRequestSchema.parse({ orderId: '' })).toThrow();
     });
 
-    it('should reject missing swap ID', () => {
+    it('should reject missing order ID', () => {
       expect(() => statusRequestSchema.parse({})).toThrow();
     });
   });

@@ -44,6 +44,13 @@ export interface Token {
   };
 }
 
+export interface TokenPair {
+  sourceChain: Chain;
+  sourceToken: Token;
+  destinationChain: Chain;
+  destinationToken: Token;
+}
+
 // ============================================================================
 // Request Types
 // ============================================================================
@@ -60,7 +67,7 @@ export interface QuoteRequest {
 }
 
 export interface StatusRequest {
-  swapId: string;
+  orderId: string;
 }
 
 // ============================================================================

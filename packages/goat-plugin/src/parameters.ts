@@ -25,24 +25,21 @@ export const executeSwapParametersSchema = z.object({
   amount: z.string().describe('Amount to swap'),
   senderAddress: z.string().describe('Sender address on source chain'),
   recipientAddress: z.string().describe('Recipient address on destination chain'),
-  paymentChain: z
-    .enum(['solana', 'base'])
-    .default('solana')
-    .describe('Chain to pay x402 fee (default: solana)'),
   slippageTolerance: z
     .number()
     .min(0)
     .max(1)
     .optional()
     .describe('Slippage tolerance (0-1)'),
+  // Removed paymentChain - x402 currently supports Solana only
 });
 
 export const getStatusParametersSchema = z.object({
-  swapId: z.string().describe('Swap transaction ID'),
+  orderId: z.string().describe('Order ID (returned from executeSwap)'),
 });
 
 export const waitForSettlementParametersSchema = z.object({
-  swapId: z.string().describe('Swap transaction ID'),
+  orderId: z.string().describe('Order ID (returned from executeSwap)'),
   timeoutSeconds: z.number().positive().optional().describe('Maximum wait time in seconds'),
 });
 

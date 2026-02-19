@@ -38,25 +38,18 @@ describe('ClawSwapClient', () => {
 
     it('should return quote response successfully', async () => {
       const mockQuote: QuoteResponse = {
-        id: 'quote-123',
+        quoteId: 'quote-123',
         sourceAmount: '1000000',
         destinationAmount: '999000',
         fees: {
-          operatingExpenses: '1000',
-          networkFee: '500',
-          totalFeeUsd: 0.502,
-          relayerFee: '1000',
-          relayerFeeFormatted: '0.001',
-          gasSolLamports: '5000',
-          gasSolFormatted: '0.000005',
-          gasUsd: '0.001',
+          bridgeFeeUsd: 0.25,
+          x402FeeUsd: 0.50,
+          gasReimbursementEstimatedUsd: 0.002,
+          totalEstimatedFeeUsd: 0.752,
         },
         estimatedTimeSeconds: 300,
         expiresAt: new Date(Date.now() + 30000).toISOString(),
         expiresIn: 30,
-        transactionData: {
-          instructions: [],
-        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -130,11 +123,28 @@ describe('ClawSwapClient', () => {
     it('should execute swap successfully', async () => {
       const mockExecuteResponse = {
         transaction: 'base64-encoded-transaction-data',
-        metadata: {
-          orderId: 'order-123',
-          paymentAmount: '500000',
-          gasLamports: '5000',
-          isToken2022: false,
+        orderId: 'order-123',
+        isToken2022: false,
+        accounting: {
+          x402Fee: {
+            amountUsd: 0.50,
+            currency: 'USDC',
+            recipient: 'x402-treasury-address',
+            note: 'x402 payment for swap execution',
+          },
+          gasReimbursement: {
+            amountRaw: '5000',
+            amountFormatted: '0.000005',
+            tokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+            recipient: 'recipient-address',
+            note: 'Gas reimbursement for Base transaction',
+          },
+          bridgeFee: {
+            estimatedUsd: 0.25,
+            note: 'Relay bridge fee',
+          },
+          sourceAmount: '1000000',
+          destinationAmount: '999000',
         },
       };
 
@@ -180,18 +190,17 @@ describe('ClawSwapClient', () => {
   describe('getStatus', () => {
     it('should return swap status', async () => {
       const mockStatus: StatusResponse = {
-        swapId: 'swap-123',
-        status: 'bridging',
+        orderId: 'order-123',
+        status: 'fulfilled',
         sourceChainId: 'solana',
-        sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        sourceAmount: '1000000',
         destinationChainId: 'base',
-        destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        sourceAmount: '1000000',
         destinationAmount: '999000',
-        destinationAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+        sourceTxHash: '5J7Qstq6afbmW9mAW4GvKBZkLXhJ9J1UmZJpZEhcZcZz',
+        destinationTxHash: '0xabc123def456...',
+        explorerUrl: 'https://basescan.org/tx/0xabc123def456...',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        transactions: [],
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -213,46 +222,37 @@ describe('ClawSwapClient', () => {
     it('should poll until completed', async () => {
       const mockStatuses: StatusResponse[] = [
         {
-          swapId: 'swap-123',
+          orderId: 'swap-123',
           status: 'pending',
           sourceChainId: 'solana',
-          sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           sourceAmount: '1000000',
-          destinationChainId: 'arbitrum',
-          destinationTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+          destinationChainId: 'base',
           destinationAmount: '999000',
-          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          transactions: [],
         },
         {
-          swapId: 'swap-123',
-          status: 'bridging',
+          orderId: 'swap-123',
+          status: 'created',
           sourceChainId: 'solana',
-          sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           sourceAmount: '1000000',
-          destinationChainId: 'arbitrum',
-          destinationTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+          destinationChainId: 'base',
           destinationAmount: '999000',
-          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          transactions: [],
         },
         {
-          swapId: 'swap-123',
+          orderId: 'swap-123',
           status: 'completed',
           sourceChainId: 'solana',
-          sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           sourceAmount: '1000000',
-          destinationChainId: 'arbitrum',
-          destinationTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+          destinationChainId: 'base',
           destinationAmount: '999000',
-          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+          sourceTxHash: '5J7Qstq6afbmW9mAW4GvKBZkLXhJ9J1UmZJpZEhcZcZz',
+          destinationTxHash: '0xabc123def456...',
+          explorerUrl: 'https://basescan.org/tx/0xabc123def456...',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          transactions: [],
         },
       ];
 
@@ -277,18 +277,14 @@ describe('ClawSwapClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          swapId: 'swap-123',
+          orderId: 'swap-123',
           status: 'pending',
           sourceChainId: 'solana',
-          sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           sourceAmount: '1000000',
-          destinationChainId: 'arbitrum',
-          destinationTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+          destinationChainId: 'base',
           destinationAmount: '999000',
-          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          transactions: [],
         }),
       });
 
@@ -306,11 +302,29 @@ describe('ClawSwapClient', () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ swapId: 'swap-123', status: 'pending' }),
+          json: async () => ({
+            orderId: 'swap-123',
+            status: 'pending',
+            sourceChainId: 'solana',
+            destinationChainId: 'base',
+            sourceAmount: '1000000',
+            destinationAmount: '999000',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ swapId: 'swap-123', status: 'completed' }),
+          json: async () => ({
+            orderId: 'swap-123',
+            status: 'completed',
+            sourceChainId: 'solana',
+            destinationChainId: 'base',
+            sourceAmount: '1000000',
+            destinationAmount: '999000',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }),
         });
 
       await client.waitForSettlement('swap-123', {
@@ -434,6 +448,54 @@ describe('ClawSwapClient', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(client.getSwapFee()).rejects.toThrow();
+    });
+  });
+
+  describe('getSupportedPairs', () => {
+    it('should return all valid cross-chain pairs', async () => {
+      // Mock chains response
+      const mockChains = {
+        chains: [
+          { id: 'solana', name: 'Solana', nativeCurrency: { symbol: 'SOL', decimals: 9 } },
+          { id: 'base', name: 'Base', nativeCurrency: { symbol: 'ETH', decimals: 18 } },
+        ],
+      };
+
+      // Mock tokens responses
+      const mockSolanaTokens = {
+        tokens: [
+          { address: 'USDC_SOL', symbol: 'USDC', name: 'USD Coin', decimals: 6, chainId: 'solana' },
+        ],
+      };
+
+      const mockBaseTokens = {
+        tokens: [
+          { address: '0xUSDC_BASE', symbol: 'USDC', name: 'USD Coin', decimals: 6, chainId: 'base' },
+        ],
+      };
+
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, json: async () => mockChains })
+        .mockResolvedValueOnce({ ok: true, json: async () => mockSolanaTokens })
+        .mockResolvedValueOnce({ ok: true, json: async () => mockBaseTokens })
+        .mockResolvedValueOnce({ ok: true, json: async () => mockBaseTokens })
+        .mockResolvedValueOnce({ ok: true, json: async () => mockSolanaTokens });
+
+      const pairs = await client.getSupportedPairs();
+
+      expect(Array.isArray(pairs)).toBe(true);
+      expect(pairs.length).toBeGreaterThan(0);
+
+      // Verify structure
+      pairs.forEach((pair) => {
+        expect(pair).toHaveProperty('sourceChain');
+        expect(pair).toHaveProperty('sourceToken');
+        expect(pair).toHaveProperty('destinationChain');
+        expect(pair).toHaveProperty('destinationToken');
+
+        // Verify no same-chain pairs
+        expect(pair.sourceChain.id).not.toBe(pair.destinationChain.id);
+      });
     });
   });
 });

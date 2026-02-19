@@ -13,6 +13,7 @@ export type {
   WaitForSettlementOptions,
   Chain,
   Token,
+  TokenPair,
   SwapStatus,
   SwapTransaction,
   ErrorCode,

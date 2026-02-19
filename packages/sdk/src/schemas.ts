@@ -45,7 +45,7 @@ export const quoteRequestSchema = z.object({
 
 // Status request schema
 export const statusRequestSchema = z.object({
-  swapId: z.string().min(1, 'Swap ID is required'),
+  orderId: z.string().min(1, 'Order ID is required'),
 });
 
 export type QuoteRequestInput = z.infer<typeof quoteRequestSchema>;

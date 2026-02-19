@@ -7,6 +7,7 @@ import type {
   WaitForSettlementOptions,
   Chain,
   Token,
+  TokenPair,
   SwapFeeResponse,
 } from './types';
 import { HttpClient } from './utils/http';
@@ -89,7 +90,7 @@ export class ClawSwapClient {
    * @param orderId The order ID (same as the quote ID)
    */
   async getStatus(orderId: string): Promise<StatusResponse> {
-    const validated = statusRequestSchema.parse({ swapId: orderId });
+    const validated = statusRequestSchema.parse({ orderId });
     return this.http.get<StatusResponse>(`/api/swap/${orderId}/status`);
   }
 
@@ -140,10 +141,43 @@ export class ClawSwapClient {
   }
 
   /**
+   * Get all valid cross-chain swap pairs
+   * Derives pairs from supported chains and tokens
+   * Results are computed client-side from cached chain/token data
+   *
+   * @returns Array of valid swap pairs
+   */
+  async getSupportedPairs(): Promise<TokenPair[]> {
+    const chains = await this.getSupportedChains();
+    const pairs: TokenPair[] = [];
+
+    for (const sourceChain of chains) {
+      const sourceTokens = await this.getSupportedTokens(sourceChain.id);
+      for (const sourceToken of sourceTokens) {
+        for (const destChain of chains) {
+          if (sourceChain.id === destChain.id) continue; // Skip same-chain
+          const destTokens = await this.getSupportedTokens(destChain.id);
+          for (const destToken of destTokens) {
+            pairs.push({
+              sourceChain,
+              sourceToken,
+              destinationChain: destChain,
+              destinationToken: destToken,
+            });
+          }
+        }
+      }
+    }
+
+    return pairs;
+  }
+
+  /**
    * Get token information including decimals
    * Helper method for executing swaps
+   * @private
    */
-  async getTokenInfo(chainId: string, tokenAddress: string): Promise<Token> {
+  private async getTokenInfo(chainId: string, tokenAddress: string): Promise<Token> {
     const tokens = await this.getSupportedTokens(chainId);
     const token = tokens.find(t => t.address === tokenAddress);
     if (!token) {
