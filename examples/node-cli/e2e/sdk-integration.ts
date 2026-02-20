@@ -24,7 +24,7 @@
 
 import dotenv from 'dotenv';
 import { ClawSwapClient } from '@clawswap/sdk';
-import type { QuoteResponse, ExecuteSwapResponse, StatusResponse, SwapFeeResponse, Chain, Token } from '@clawswap/sdk';
+import type { QuoteResponse, ExecuteSwapResponse, StatusResponse, SwapFeeBreakdown, Chain, Token } from '@clawswap/sdk';
 
 dotenv.config();
 
@@ -100,16 +100,18 @@ async function testDiscovery(client: ClawSwapClient): Promise<void> {
   assert(baseUsdc !== undefined, 'Base USDC found');
   assert(baseUsdc?.chainId === 'base', 'Base USDC chainId is "base"');
 
-  const fee: SwapFeeResponse = await client.getSwapFee();
-  assert(typeof fee.amount === 'number', 'getSwapFee() returns amount (number)');
-  assert(typeof fee.currency === 'string', 'getSwapFee() returns currency (string)');
-  assert(typeof fee.network === 'string', 'getSwapFee() returns network (string)');
-  assert(typeof fee.description === 'string', 'getSwapFee() returns description (string)');
+  const fee: SwapFeeBreakdown = await client.getSwapFee();
+  assert(typeof fee.x402Fee === 'object', 'getSwapFee() returns x402Fee object');
+  assert(typeof fee.x402Fee.amountUsd === 'number', 'x402Fee.amountUsd is a number');
+  assert(typeof fee.x402Fee.currency === 'string', 'x402Fee.currency is a string');
+  assert(typeof fee.gasReimbursement === 'object', 'getSwapFee() returns gasReimbursement object');
+  assert(typeof fee.bridgeFee === 'object', 'getSwapFee() returns bridgeFee object');
+  assert(typeof fee.note === 'string', 'getSwapFee() returns note (string)');
 
   console.log(`\n  Chains: ${chains.map((c) => c.id).join(', ')}`);
   console.log(`  Solana tokens: ${solanaTokens.length}`);
   console.log(`  Base tokens: ${baseTokens.length}`);
-  console.log(`  Swap fee: ${fee.amount} ${fee.currency} on ${fee.network}`);
+  console.log(`  x402 fee: $${fee.x402Fee.amountUsd} ${fee.x402Fee.currency} on ${fee.x402Fee.network}`);
 }
 
 // ─── Section 2: Quote ────────────────────────────────────────────────────────
@@ -218,13 +220,15 @@ async function testExecute(): Promise<ExecuteSwapResponse | null> {
   assert(typeof response.isToken2022 === 'boolean', 'executeSwap() returns isToken2022 (boolean)');
   assert(typeof response.accounting === 'object', 'executeSwap() returns accounting object');
   assert(typeof response.accounting.x402Fee.amountUsd === 'number', 'accounting.x402Fee.amountUsd is a number');
-  assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
-  assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  if (response.accounting.gasReimbursement) {
+    assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
+    assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  }
   assert(typeof response.accounting.bridgeFee.estimatedUsd === 'number', 'accounting.bridgeFee.estimatedUsd is a number');
 
   console.log(`\n  Order ID: ${response.orderId}`);
   console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
-  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement.amountFormatted}`);
+  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
 
   return response;
 }

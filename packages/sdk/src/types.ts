@@ -18,16 +18,31 @@ export interface Chain {
   isTestnet?: boolean;
 }
 
-export interface SwapFeeResponse {
-  /** Fee amount in the specified currency */
-  amount: number;
-  /** Fee currency (e.g., "USDC") */
-  currency: string;
-  /** Network the fee is charged on (e.g., "solana") */
-  network: string;
-  /** Human-readable description of what the fee covers */
-  description: string;
+export interface SwapFeeBreakdown {
+  x402Fee: {
+    amountUsd: number;
+    currency: string;
+    network: string;
+    appliesTo: string;
+    description: string;
+  };
+  gasReimbursement: {
+    estimatedUsd: string;
+    currency: string;
+    appliesTo: string;
+    description: string;
+  };
+  bridgeFee: {
+    estimatedUsd: string;
+    currency: string;
+    appliesTo: string;
+    description: string;
+  };
+  note: string;
 }
+
+/** @deprecated Use SwapFeeBreakdown */
+export type SwapFeeResponse = SwapFeeBreakdown;
 
 export interface Token {
   address: string;
@@ -36,12 +51,11 @@ export interface Token {
   decimals: number;
   chainId: string;
   logoUri?: string;
-  // Token-2022 specific properties
   isToken2022?: boolean;
-  transferFeeConfig?: {
-    transferFeeBasisPoints: number;
-    maximumFee: string;
-  };
+  transferFeePercent?: number | null;
+  transferFeeBasisPoints?: number | null;
+  maximumFee?: string | null;
+  requiresMemoTransfers?: boolean;
 }
 
 export interface TokenPair {
@@ -89,16 +103,35 @@ export interface QuoteResponse {
   expiresIn: number; // Seconds until expiry (30s)
 }
 
+/** EVM transaction object returned for Base → Solana swaps */
+export interface EvmTransaction {
+  /** Contract address to call (Relay's contract on Base) */
+  to: string;
+  /** Hex-encoded calldata */
+  data: string;
+  /** Native token value in wei (usually "0" for token swaps) */
+  value: string;
+  /** EVM chain ID (8453 for Base) */
+  chainId: number;
+  /** Human-readable step description (e.g. "Approve USDC spending") */
+  description?: string;
+}
+
 /**
  * Response from POST /api/swap/execute
- * Returns a partially-signed transaction that the user must sign and submit
+ * Returns transaction(s) that the user must sign and submit.
+ *
+ * - Solana source: `transaction` is a base64-encoded partially-signed Solana transaction
+ * - EVM source: `transactions` is an ordered array of EVM transactions to execute sequentially
  */
 export interface ExecuteSwapResponse {
-  /** Base64-encoded partially-signed Solana transaction */
-  transaction: string;
+  /** Base64-encoded partially-signed Solana transaction (Solana source only) */
+  transaction?: string;
+  /** Ordered array of EVM transactions to execute sequentially (EVM source only) */
+  transactions?: EvmTransaction[];
   /** Order ID for tracking swap status via /api/swap/:id/status */
   orderId: string;
-  /** Whether the source token is Token-2022 */
+  /** Whether the source token is Token-2022 (always false for EVM source) */
   isToken2022: boolean;
   /** Detailed fee and amount accounting */
   accounting: {
@@ -108,13 +141,14 @@ export interface ExecuteSwapResponse {
       recipient: string;
       note: string;
     };
+    /** Gas reimbursement details. null for EVM-source swaps (no gas sponsorship). */
     gasReimbursement: {
       amountRaw: string;
       amountFormatted: string;
       tokenMint: string;
       recipient: string;
       note: string;
-    };
+    } | null;
     bridgeFee: {
       estimatedUsd: number;
       note: string;
@@ -122,6 +156,37 @@ export interface ExecuteSwapResponse {
     sourceAmount: string;
     destinationAmount: string;
   };
+}
+
+/** Check if the execute response is from a Solana source swap */
+export function isSolanaSource(
+  response: ExecuteSwapResponse
+): response is ExecuteSwapResponse & { transaction: string } {
+  return typeof response.transaction === 'string';
+}
+
+/** Check if the execute response is from an EVM source swap */
+export function isEvmSource(
+  response: ExecuteSwapResponse
+): response is ExecuteSwapResponse & { transactions: EvmTransaction[] } {
+  return Array.isArray(response.transactions);
+}
+
+/**
+ * @deprecated Use `isEvmSource(response)` instead. The API now returns
+ * `transactions` (array) for EVM source, not a single `transaction` object.
+ */
+export function isEvmTransaction(
+  tx: unknown
+): tx is EvmTransaction {
+  if (typeof tx !== 'object' || tx === null) return false;
+  const candidate = tx as Record<string, unknown>;
+  return (
+    typeof candidate.to === 'string' &&
+    typeof candidate.data === 'string' &&
+    typeof candidate.value === 'string' &&
+    typeof candidate.chainId === 'number'
+  );
 }
 
 /**
@@ -191,6 +256,7 @@ export type ErrorCode =
   | 'UNSUPPORTED_PAIR'
   | 'QUOTE_EXPIRED'
   | 'INVALID_TOKEN_ADDRESS'
+  | 'INVALID_MINT_ADDRESS'
   | 'INVALID_CHAIN_ID'
   | 'PAYMENT_REQUIRED'
   | 'PAYMENT_VERIFICATION_FAILED'

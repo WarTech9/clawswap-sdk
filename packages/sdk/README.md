@@ -1,35 +1,33 @@
 # @clawswap/sdk
 
-Framework-agnostic TypeScript SDK for ClawSwap cross-chain token swaps.
+Framework-agnostic TypeScript SDK for bidirectional Solana ↔ Base cross-chain token swaps.
 
 ## Prerequisites
 
 To use the ClawSwap SDK, you need:
 
 - **Node.js** >= 18.0.0
-- **Solana Wallet** (for executing swaps):
-  - Base58-encoded private key
-  - Minimum 0.5 USDC (for swap fee)
-  - ~0.01 SOL (for gas)
+- **For Solana → Base**: Solana wallet (base58 private key), 0.5 USDC (swap fee), ~0.01 SOL (gas)
+- **For Base → Solana**: EVM wallet (0x-prefixed hex private key), USDC on Base, ~$0.001 ETH on Base (gas)
 
 See the [main README](../../README.md#prerequisites) for detailed wallet setup instructions.
 
 ## Installation
 
 ```bash
-npm install @clawswap/sdk @x402/fetch
-# or
-pnpm add @clawswap/sdk @x402/fetch
+npm install @clawswap/sdk
 ```
 
 ## Setup
 
-### 1. Install All Required Dependencies
+### 1. Install Dependencies
 
 ```bash
+# For Solana → Base (x402 payment + Solana signing)
 npm install @clawswap/sdk @x402/fetch @x402/core @x402/svm @solana/signers @solana/web3.js bs58
-# or
-pnpm add @clawswap/sdk @x402/fetch @x402/core @x402/svm @solana/signers @solana/web3.js bs58
+
+# For Base → Solana (EVM signing only, no x402 needed)
+npm install @clawswap/sdk viem
 ```
 
 ### 2. Configure Environment Variables
@@ -37,29 +35,28 @@ pnpm add @clawswap/sdk @x402/fetch @x402/core @x402/svm @solana/signers @solana/
 Create `.env` file:
 
 ```bash
-# Required - your Solana wallet's base58-encoded private key
+# For Solana → Base swaps
 SOLANA_PRIVATE_KEY=your_base58_key_here
+
+# For Base → Solana swaps
+EVM_PRIVATE_KEY=0xyour_hex_private_key_here
 ```
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SOLANA_PRIVATE_KEY` | Yes (for swaps) | Base58-encoded Solana private key. Get from Phantom/Solflare export or `solana-keygen new`. |
-
-**How to get your private key:**
-- **Phantom/Solflare**: Settings → Export Private Key
-- **CLI**: `solana-keygen new --outfile wallet.json`
+| `SOLANA_PRIVATE_KEY` | For Solana → Base | Base58-encoded Solana private key |
+| `EVM_PRIVATE_KEY` | For Base → Solana | 0x-prefixed hex EVM private key |
 
 **Security:** Add `.env` to `.gitignore`.
 
 ### 3. Fund Your Wallet
 
-Your Solana wallet needs:
-- **0.5 USDC** (covers $0.50 swap fee)
-- **~0.01 SOL** (covers transaction gas)
+**Solana → Base:** 0.5 USDC + ~0.01 SOL on Solana
+**Base → Solana:** USDC + small ETH (~$0.001) on Base
 
 ## Quick Start
 
-**Complete working example** (requires [Setup](#setup)):
+### Solana → Base (Gas-free, $0.50 USDC x402 fee)
 
 ```typescript
 import { ClawSwapClient } from '@clawswap/sdk';
@@ -69,66 +66,86 @@ import { registerExactSvmScheme } from '@x402/svm/exact/client';
 import { createKeyPairSignerFromBytes } from '@solana/signers';
 import { Connection, Transaction, Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
-import 'dotenv/config'; // Load .env file
+import 'dotenv/config';
 
-// 1. Setup x402 payment (reads SOLANA_PRIVATE_KEY from .env)
+// 1. Setup x402 payment (Solana-source swaps require $0.50 USDC fee)
 const secretKey = bs58.decode(process.env.SOLANA_PRIVATE_KEY!);
 const signer = await createKeyPairSignerFromBytes(secretKey);
-
 const x402 = new x402Client();
 registerExactSvmScheme(x402, {
   signer,
-  networks: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'], // Solana mainnet
+  networks: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
   x402Versions: [2, 1],
 });
-
 const fetchWithPayment = wrapFetchWithPayment(fetch, x402);
+const client = new ClawSwapClient({ fetch: fetchWithPayment });
 
-// 2. Create ClawSwap client
-const clawswap = new ClawSwapClient({ fetch: fetchWithPayment });
-
-// 3. Optional: Preview quote (free endpoint)
-const quote = await clawswap.getQuote({
+// 2. Execute swap
+const swap = await client.executeSwap({
   sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
+  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   amount: '1000000', // 1 USDC (6 decimals)
   senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
   recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
 });
 
-console.log(`You will receive: ${quote.destinationAmount} tokens`);
-console.log(`Fee: $${quote.fees.totalFeeUsd}`);
-
-// 4. Execute swap (requires $0.50 USDC payment via x402)
-const executeResponse = await clawswap.executeSwap({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  amount: '1000000',
-  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-});
-
-console.log(`Order ID: ${executeResponse.orderId}`);
-
-// 5. Sign and submit transaction
+// 3. Sign and submit (Solana source returns base64 string)
 const connection = new Connection('https://api.mainnet-beta.solana.com');
-const tx = Transaction.from(Buffer.from(executeResponse.transaction, 'base64'));
+const tx = Transaction.from(Buffer.from(swap.transaction as string, 'base64'));
 const keypair = Keypair.fromSecretKey(secretKey);
 tx.partialSign(keypair);
-
 const signature = await connection.sendRawTransaction(tx.serialize());
 await connection.confirmTransaction(signature);
-console.log(`Transaction: ${signature}`);
 
-// 6. Wait for swap completion
-const result = await clawswap.waitForSettlement(executeResponse.orderId, {
-  onStatusUpdate: (status) => console.log(`Status: ${status.status}`),
+// 4. Wait for completion
+const result = await client.waitForSettlement(swap.orderId);
+console.log(`Swap ${result.status}!`);
+```
+
+### Base → Solana (Caller pays gas, no x402 payment)
+
+```typescript
+import { ClawSwapClient, isEvmSource } from '@clawswap/sdk';
+import { createWalletClient, createPublicClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { base } from 'viem/chains';
+import 'dotenv/config';
+
+// 1. No x402 setup needed for Base-source swaps
+const client = new ClawSwapClient();
+
+// 2. Execute swap
+const swap = await client.executeSwap({
+  sourceChainId: 'base',
+  sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  destinationChainId: 'solana',
+  destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  amount: '1000000',
+  senderAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+  recipientAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
 });
 
+// 3. Sign and submit (Base source returns ordered transactions array)
+if (isEvmSource(swap)) {
+  const account = privateKeyToAccount(process.env.EVM_PRIVATE_KEY! as `0x${string}`);
+  const wallet = createWalletClient({ account, chain: base, transport: http() });
+  const publicClient = createPublicClient({ chain: base, transport: http() });
+
+  for (const tx of swap.transactions!) {
+    const txHash = await wallet.sendTransaction({
+      to: tx.to as `0x${string}`,
+      data: tx.data as `0x${string}`,
+      value: BigInt(tx.value),
+    });
+    await publicClient.waitForTransactionReceipt({ hash: txHash });
+    console.log(`Transaction: https://basescan.org/tx/${txHash}`);
+  }
+}
+
+// 4. Wait for completion
+const result = await client.waitForSettlement(swap.orderId);
 console.log(`Swap ${result.status}!`);
 ```
 
@@ -147,14 +164,11 @@ console.log(`Swap ${result.status}!`);
 x402 is a micropayment protocol that enables pay-per-use API access with cryptocurrency:
 
 - **No API Keys**: Your wallet automatically pays for each API call
-- **Micropayments**: Pay exactly $0.50 USDC per swap, nothing more
+- **Solana → Base**: $0.50 USDC fee (server sponsors gas)
+- **Base → Solana**: Free (agent pays ~$0.001 Base gas directly)
 - **Perfect for AI Agents**: Autonomous payment without managing API keys
 
-When you wrap your fetch with `wrapFetchWithPayment(fetch, x402)`, the SDK automatically:
-1. Detects paid endpoints (like `/api/swap/execute`)
-2. Creates a micro-payment transaction
-3. Attaches payment proof to the request
-4. Submits to ClawSwap API
+x402 is only required for Solana-source swaps. When you wrap your fetch with `wrapFetchWithPayment(fetch, x402)`, it automatically handles payment for the `/api/swap/execute` endpoint. Base-source swaps use plain `fetch` with no payment.
 
 Learn more at [x402.org](https://x402.org)
 
@@ -195,28 +209,29 @@ const quote = await client.getQuote({
 
 ##### `executeSwap(request: QuoteRequest): Promise<ExecuteSwapResponse>`
 
-Execute a cross-chain swap. **Requires $0.50 USDC payment via x402 on Solana**.
+Execute a cross-chain swap. Solana-source swaps require $0.50 USDC via x402. Base-source swaps are free.
 
 Accepts the same parameters as `getQuote()`. The API fetches a fresh quote internally, so no quote expiry issues.
 
-Returns a partially-signed transaction that must be signed by the user and submitted to Solana RPC.
+Returns transaction data that must be signed and submitted:
+- **Solana source**: `transaction` is a base64 string → deserialize, sign, submit to Solana RPC
+- **Base source**: `transactions` is an ordered array of `EvmTransaction` objects → execute sequentially with viem/ethers
 
 ```typescript
-// Execute swap directly (no need to call getQuote first)
-const executeResponse = await client.executeSwap({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  amount: '1000000',
-  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-  slippageTolerance: 0.01, // Optional
-});
+import { isEvmSource, isSolanaSource } from '@clawswap/sdk';
 
-// Response includes transaction to sign and orderId for tracking
-console.log(executeResponse.transaction); // Base64-encoded transaction
-console.log(executeResponse.metadata.orderId); // Use for status tracking
+const response = await client.executeSwap({ /* ... */ });
+
+if (isEvmSource(response)) {
+  // Base source → execute transactions in order (approve, then bridge)
+  for (const tx of response.transactions) {
+    // sign with viem and submit to Base
+  }
+} else if (isSolanaSource(response)) {
+  // Solana source → deserialize base64, sign, submit to Solana
+}
+
+console.log(response.orderId); // Use for status tracking
 ```
 
 ##### `getStatus(orderId: string): Promise<StatusResponse>`
@@ -225,7 +240,7 @@ Check the status of a swap using the order ID. **Free endpoint**.
 
 ```typescript
 // Use orderId from executeSwap response
-const status = await client.getStatus(executeResponse.metadata.orderId);
+const status = await client.getStatus(response.orderId);
 console.log(status.status); // 'pending' | 'created' | 'fulfilled' | 'completed' | 'failed' | 'cancelled'
 ```
 
@@ -235,7 +250,7 @@ Poll until swap reaches a terminal state (fulfilled/completed/failed/cancelled).
 
 ```typescript
 // Use orderId from executeSwap response
-const result = await client.waitForSettlement(executeResponse.metadata.orderId, {
+const result = await client.waitForSettlement(response.orderId, {
   timeout: 300000, // 5 minutes (default)
   interval: 3000,  // Poll every 3 seconds (default)
   onStatusUpdate: (status) => {
@@ -342,7 +357,8 @@ const chains = await client.getSupportedChains();
 const tokens = await client.getSupportedTokens('solana');
 const quote = await client.getQuote(request);
 
-// executeSwap will fail with PaymentRequiredError if fetch isn't x402-wrapped
+// Solana-source executeSwap requires x402-wrapped fetch (PaymentRequiredError otherwise)
+// Base-source executeSwap works with plain fetch (no x402 payment needed)
 ```
 
 ## TypeScript

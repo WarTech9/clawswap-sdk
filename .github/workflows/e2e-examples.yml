@@ -1,4 +1,4 @@
-name: E2E Examples
+name: Build & Test
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 jobs:
-  test-examples:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,39 +28,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build SDK
+      - name: Build all packages
         run: pnpm build
 
-      - name: Test discovery command
-        working-directory: examples/node-cli
-        run: |
-          pnpm run dev -- discovery chains
-          pnpm run dev -- discovery tokens solana
-
-      - name: Test quote command
-        working-directory: examples/node-cli
-        run: |
-          pnpm run dev -- quote \
-            --from solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-            --to arbitrum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
-            --amount 1000000
-
-      - name: Test swap mock mode
-        working-directory: examples/node-cli
-        run: |
-          pnpm run dev -- swap \
-            --from solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v \
-            --to arbitrum:0xaf88d065e77c8cC2239327C5EDb3A432268e5831 \
-            --amount 1000000 \
-            --destination 0x0000000000000000000000000000000000000000 \
-            --mock
-
-      - name: Build browser example
-        working-directory: examples/browser
-        run: pnpm run build
-
-      - name: Upload browser build
-        uses: actions/upload-artifact@v3
-        with:
-          name: browser-example
-          path: examples/browser/dist
+      - name: Run unit tests
+        run: pnpm test

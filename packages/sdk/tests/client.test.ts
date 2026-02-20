@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ClawSwapClient } from '../src/client';
-import type { QuoteResponse, SwapResponse, StatusResponse, Chain, Token } from '../src/types';
+import type { QuoteResponse, SwapResponse, StatusResponse, Chain, Token, EvmTransaction, ExecuteSwapResponse } from '../src/types';
+import { isEvmTransaction, isEvmSource, isSolanaSource } from '../src/types';
 import {
   InsufficientLiquidityError,
   QuoteExpiredError,
@@ -422,12 +423,28 @@ describe('ClawSwapClient', () => {
   });
 
   describe('getSwapFee', () => {
-    it('should return fee response', async () => {
+    it('should return fee breakdown response', async () => {
       const mockFee = {
-        amount: 0.1,
-        currency: 'USDC',
-        network: 'solana',
-        description: 'x402 payment required per swap execution',
+        x402Fee: {
+          amountUsd: 0.5,
+          currency: 'USDC',
+          network: 'solana',
+          appliesTo: 'Solana-source swaps only',
+          description: 'x402 payment required per swap execution',
+        },
+        gasReimbursement: {
+          estimatedUsd: '~0.001',
+          currency: 'USDC or USDT',
+          appliesTo: 'Solana-source swaps only',
+          description: 'Reimburses gas costs',
+        },
+        bridgeFee: {
+          estimatedUsd: '~0.03–0.05',
+          currency: 'Source token',
+          appliesTo: 'All swaps',
+          description: 'Relay bridge fee',
+        },
+        note: 'Solana-source: total cost = x402Fee + gasReimbursement + bridgeFee',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -438,6 +455,10 @@ describe('ClawSwapClient', () => {
       const result = await client.getSwapFee();
 
       expect(result).toEqual(mockFee);
+      expect(result.x402Fee.amountUsd).toBe(0.5);
+      expect(result.gasReimbursement.estimatedUsd).toBe('~0.001');
+      expect(result.bridgeFee.estimatedUsd).toBe('~0.03–0.05');
+      expect(typeof result.note).toBe('string');
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.test.clawswap.dev/api/swap/fee',
         expect.objectContaining({ method: 'GET' })
@@ -448,6 +469,146 @@ describe('ClawSwapClient', () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(client.getSwapFee()).rejects.toThrow();
+    });
+  });
+
+  describe('executeSwap (Base → Solana)', () => {
+    const baseToSolanaRequest = {
+      sourceChainId: 'base',
+      sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      destinationChainId: 'solana',
+      destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      amount: '1000000',
+      senderAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+      recipientAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+    };
+
+    it('should handle transactions array in response', async () => {
+      const mockResponse = {
+        transactions: [
+          {
+            to: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            data: '0xapprove1234567890',
+            value: '0',
+            chainId: 8453,
+            description: 'Approve USDC spending',
+          },
+          {
+            to: '0xa5F565650890Fba1824Ee0F21EbBbF660a179934',
+            data: '0xabcdef1234567890',
+            value: '0',
+            chainId: 8453,
+            description: 'Bridge deposit',
+          },
+        ],
+        orderId: '0xfedcba',
+        isToken2022: false,
+        accounting: {
+          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: 'No x402 fee for EVM-source swaps' },
+          gasReimbursement: null,
+          bridgeFee: { estimatedUsd: 0.037, note: 'Relay bridge fee' },
+          sourceAmount: '1000000',
+          destinationAmount: '962766',
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.executeSwap(baseToSolanaRequest);
+
+      expect(Array.isArray(result.transactions)).toBe(true);
+      expect(result.transactions!.length).toBe(2);
+      expect(result.transactions![0].description).toBe('Approve USDC spending');
+      expect(result.transactions![1].to).toBe('0xa5F565650890Fba1824Ee0F21EbBbF660a179934');
+      expect(result.transactions![1].chainId).toBe(8453);
+      expect(result.accounting.gasReimbursement).toBeNull();
+      expect(result.accounting.x402Fee.amountUsd).toBe(0);
+      expect(result.isToken2022).toBe(false);
+    });
+
+    it('should not require x402 payment for Base-source swaps', async () => {
+      const mockResponse = {
+        transactions: [
+          { to: '0xabc', data: '0x123', value: '0', chainId: 8453 },
+        ],
+        orderId: '0xdef',
+        isToken2022: false,
+        accounting: {
+          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: 'No x402 fee' },
+          gasReimbursement: null,
+          bridgeFee: { estimatedUsd: 0.037, note: 'Relay bridge fee' },
+          sourceAmount: '1000000',
+          destinationAmount: '962766',
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.executeSwap(baseToSolanaRequest);
+
+      // Verify no 402 error was thrown (no x402 payment needed)
+      expect(result.orderId).toBe('0xdef');
+      expect(result.accounting.x402Fee.amountUsd).toBe(0);
+    });
+  });
+
+  describe('isEvmTransaction (deprecated)', () => {
+    it('should return true for EVM transaction objects', () => {
+      const evmTx: EvmTransaction = {
+        to: '0xa5F565650890Fba1824Ee0F21EbBbF660a179934',
+        data: '0xabcdef',
+        value: '0',
+        chainId: 8453,
+      };
+      expect(isEvmTransaction(evmTx)).toBe(true);
+    });
+
+    it('should return false for strings', () => {
+      expect(isEvmTransaction('AQAAAAAAAAAAAAAAAACAAQAHDw...')).toBe(false);
+    });
+  });
+
+  describe('isEvmSource / isSolanaSource', () => {
+    it('should identify EVM source responses (transactions array)', () => {
+      const evmResponse: ExecuteSwapResponse = {
+        transactions: [
+          { to: '0xabc', data: '0x123', value: '0', chainId: 8453 },
+        ],
+        orderId: 'order-123',
+        isToken2022: false,
+        accounting: {
+          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: '' },
+          gasReimbursement: null,
+          bridgeFee: { estimatedUsd: 0.037, note: '' },
+          sourceAmount: '1000000',
+          destinationAmount: '962766',
+        },
+      };
+      expect(isEvmSource(evmResponse)).toBe(true);
+      expect(isSolanaSource(evmResponse)).toBe(false);
+    });
+
+    it('should identify Solana source responses (transaction string)', () => {
+      const solanaResponse: ExecuteSwapResponse = {
+        transaction: 'AQAAAAAAAAAAAAAAAACAAQAHDw...',
+        orderId: 'order-456',
+        isToken2022: false,
+        accounting: {
+          x402Fee: { amountUsd: 0.5, currency: 'USDC', recipient: 'treasury', note: '' },
+          gasReimbursement: { amountRaw: '5000', amountFormatted: '0.000005', tokenMint: 'USDC', recipient: 'addr', note: '' },
+          bridgeFee: { estimatedUsd: 0.037, note: '' },
+          sourceAmount: '1000000',
+          destinationAmount: '962766',
+        },
+      };
+      expect(isSolanaSource(solanaResponse)).toBe(true);
+      expect(isEvmSource(solanaResponse)).toBe(false);
     });
   });
 

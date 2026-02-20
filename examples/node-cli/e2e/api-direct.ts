@@ -125,11 +125,13 @@ async function testDiscovery(): Promise<void> {
   assert(baseUsdc?.chainId === 'base', 'Base USDC chainId is "base"');
 
   const fee = await apiGet<any>('/api/swap/fee');
-  assert(typeof fee.amount === 'number', 'Swap fee has amount (number)');
-  assert(typeof fee.currency === 'string', 'Swap fee has currency (string)');
-  assert(typeof fee.network === 'string', 'Swap fee has network (string)');
-  assert(typeof fee.description === 'string', 'Swap fee has description (string)');
-  console.log(`\n  Swap fee: ${fee.amount} ${fee.currency} on ${fee.network}`);
+  assert(typeof fee.x402Fee === 'object', 'Swap fee has x402Fee object');
+  assert(typeof fee.x402Fee.amountUsd === 'number', 'x402Fee.amountUsd is a number');
+  assert(typeof fee.x402Fee.currency === 'string', 'x402Fee.currency is a string');
+  assert(typeof fee.gasReimbursement === 'object', 'Swap fee has gasReimbursement object');
+  assert(typeof fee.bridgeFee === 'object', 'Swap fee has bridgeFee object');
+  assert(typeof fee.note === 'string', 'Swap fee has note (string)');
+  console.log(`\n  x402 fee: $${fee.x402Fee.amountUsd} ${fee.x402Fee.currency} on ${fee.x402Fee.network}`);
 }
 
 // ─── Section 2: Quote ────────────────────────────────────────────────────────
@@ -236,13 +238,15 @@ async function testExecute(): Promise<{ transaction: string; orderId: string } |
   assert(typeof response.isToken2022 === 'boolean', 'Response has isToken2022 (boolean)');
   assert(typeof response.accounting === 'object', 'Response has accounting object');
   assert(typeof response.accounting.x402Fee.amountUsd === 'number', 'accounting.x402Fee.amountUsd is a number');
-  assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
-  assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  if (response.accounting.gasReimbursement) {
+    assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
+    assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  }
   assert(typeof response.accounting.bridgeFee.estimatedUsd === 'number', 'accounting.bridgeFee.estimatedUsd is a number');
 
   console.log(`\n  Order ID: ${response.orderId}`);
   console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
-  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement.amountFormatted}`);
+  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
   console.log(`  Transaction size: ${response.transaction.length} base64 chars`);
 
   return { transaction: response.transaction, orderId: response.orderId };
