@@ -73,7 +73,7 @@ export class ClawSwapClient {
    *
    * Returns transaction data that must be signed and submitted:
    * - Solana source: base64 string → deserialize, sign, submit to Solana RPC
-   * - Base source: EvmTransaction object → sign with viem/ethers, submit to Base RPC
+   * - Base source: ordered EvmTransaction[] array → execute sequentially with viem/ethers on Base
    *
    * @param request Same parameters as getQuote()
    * @returns Transaction to sign and orderId for tracking

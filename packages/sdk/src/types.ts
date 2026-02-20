@@ -159,12 +159,16 @@ export interface ExecuteSwapResponse {
 }
 
 /** Check if the execute response is from a Solana source swap */
-export function isSolanaSource(response: ExecuteSwapResponse): boolean {
+export function isSolanaSource(
+  response: ExecuteSwapResponse
+): response is ExecuteSwapResponse & { transaction: string } {
   return typeof response.transaction === 'string';
 }
 
 /** Check if the execute response is from an EVM source swap */
-export function isEvmSource(response: ExecuteSwapResponse): boolean {
+export function isEvmSource(
+  response: ExecuteSwapResponse
+): response is ExecuteSwapResponse & { transactions: EvmTransaction[] } {
   return Array.isArray(response.transactions);
 }
 
@@ -175,7 +179,14 @@ export function isEvmSource(response: ExecuteSwapResponse): boolean {
 export function isEvmTransaction(
   tx: unknown
 ): tx is EvmTransaction {
-  return typeof tx === 'object' && tx !== null && 'to' in tx;
+  if (typeof tx !== 'object' || tx === null) return false;
+  const candidate = tx as Record<string, unknown>;
+  return (
+    typeof candidate.to === 'string' &&
+    typeof candidate.data === 'string' &&
+    typeof candidate.value === 'string' &&
+    typeof candidate.chainId === 'number'
+  );
 }
 
 /**

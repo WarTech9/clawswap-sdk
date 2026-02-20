@@ -224,7 +224,7 @@ const response = await client.executeSwap({ /* ... */ });
 
 if (isEvmSource(response)) {
   // Base source → execute transactions in order (approve, then bridge)
-  for (const tx of response.transactions!) {
+  for (const tx of response.transactions) {
     // sign with viem and submit to Base
   }
 } else if (isSolanaSource(response)) {
@@ -240,7 +240,7 @@ Check the status of a swap using the order ID. **Free endpoint**.
 
 ```typescript
 // Use orderId from executeSwap response
-const status = await client.getStatus(executeResponse.orderId);
+const status = await client.getStatus(response.orderId);
 console.log(status.status); // 'pending' | 'created' | 'fulfilled' | 'completed' | 'failed' | 'cancelled'
 ```
 
@@ -250,7 +250,7 @@ Poll until swap reaches a terminal state (fulfilled/completed/failed/cancelled).
 
 ```typescript
 // Use orderId from executeSwap response
-const result = await client.waitForSettlement(executeResponse.orderId, {
+const result = await client.waitForSettlement(response.orderId, {
   timeout: 300000, // 5 minutes (default)
   interval: 3000,  // Poll every 3 seconds (default)
   onStatusUpdate: (status) => {

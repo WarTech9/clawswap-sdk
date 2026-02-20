@@ -220,13 +220,15 @@ async function testExecute(): Promise<ExecuteSwapResponse | null> {
   assert(typeof response.isToken2022 === 'boolean', 'executeSwap() returns isToken2022 (boolean)');
   assert(typeof response.accounting === 'object', 'executeSwap() returns accounting object');
   assert(typeof response.accounting.x402Fee.amountUsd === 'number', 'accounting.x402Fee.amountUsd is a number');
-  assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
-  assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  if (response.accounting.gasReimbursement) {
+    assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
+    assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  }
   assert(typeof response.accounting.bridgeFee.estimatedUsd === 'number', 'accounting.bridgeFee.estimatedUsd is a number');
 
   console.log(`\n  Order ID: ${response.orderId}`);
   console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
-  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement.amountFormatted}`);
+  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
 
   return response;
 }

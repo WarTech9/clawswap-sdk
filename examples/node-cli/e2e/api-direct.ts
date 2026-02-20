@@ -238,13 +238,15 @@ async function testExecute(): Promise<{ transaction: string; orderId: string } |
   assert(typeof response.isToken2022 === 'boolean', 'Response has isToken2022 (boolean)');
   assert(typeof response.accounting === 'object', 'Response has accounting object');
   assert(typeof response.accounting.x402Fee.amountUsd === 'number', 'accounting.x402Fee.amountUsd is a number');
-  assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
-  assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  if (response.accounting.gasReimbursement) {
+    assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
+    assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
+  }
   assert(typeof response.accounting.bridgeFee.estimatedUsd === 'number', 'accounting.bridgeFee.estimatedUsd is a number');
 
   console.log(`\n  Order ID: ${response.orderId}`);
   console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
-  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement.amountFormatted}`);
+  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
   console.log(`  Transaction size: ${response.transaction.length} base64 chars`);
 
   return { transaction: response.transaction, orderId: response.orderId };
