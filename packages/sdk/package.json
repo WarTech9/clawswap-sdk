@@ -1,7 +1,7 @@
 {
   "name": "@clawswap/sdk",
   "version": "0.1.0",
-  "description": "Gasless Solana → Base cross-chain swaps for AI agents via x402 micropayments. $0.50 flat fee, no API key, no gas. Base → Solana coming in days.",
+  "description": "Gasless cross-chain token swaps for AI agents via x402 micropayments. Solana ↔ Base bidirectional. No API key, no gas management.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -55,6 +55,10 @@
   "homepage": "https://clawswap.dev",
   "bugs": {
     "url": "https://github.com/WarTech9/clawswap-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
     "zod": "^3.22.4"

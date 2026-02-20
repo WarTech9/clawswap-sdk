@@ -7,9 +7,11 @@ export type {
   QuoteRequest,
   QuoteResponse,
   ExecuteSwapResponse,
+  EvmTransaction,
   SwapResponse, // Alias for ExecuteSwapResponse (backwards compatibility)
   StatusResponse,
-  SwapFeeResponse,
+  SwapFeeBreakdown,
+  SwapFeeResponse, // Deprecated alias for SwapFeeBreakdown
   WaitForSettlementOptions,
   Chain,
   Token,
@@ -19,6 +21,9 @@ export type {
   ErrorCode,
   ApiError,
 } from './types';
+
+// Type guards and helpers
+export { isEvmTransaction, isEvmSource, isSolanaSource } from './types';
 
 // Errors
 export {

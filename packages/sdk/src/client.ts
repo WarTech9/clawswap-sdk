@@ -8,7 +8,7 @@ import type {
   Chain,
   Token,
   TokenPair,
-  SwapFeeResponse,
+  SwapFeeBreakdown,
 } from './types';
 import { HttpClient } from './utils/http';
 import { poll, isTerminalStatus } from './utils/polling';
@@ -63,20 +63,20 @@ export class ClawSwapClient {
   }
 
   /**
-   * Execute a cross-chain swap
-   * Protected by x402 - requires payment ($0.50 USDC on Solana)
-   * Fetch must be x402-wrapped for automatic payment handling
+   * Execute a cross-chain swap (bidirectional: Solana ↔ Base)
+   *
+   * x402 payment ($0.50 USDC on Solana) is only required for Solana-source swaps.
+   * Base-source swaps are free — no x402 payment needed.
    *
    * The API fetches a fresh quote internally, so no quote expiry issues.
    * Pass the same parameters you would use for getQuote().
    *
-   * Returns a partially-signed transaction that must be:
-   * 1. Signed by the user
-   * 2. Submitted to Solana RPC
-   * 3. Then poll status using the returned orderId from metadata
+   * Returns transaction data that must be signed and submitted:
+   * - Solana source: base64 string → deserialize, sign, submit to Solana RPC
+   * - Base source: EvmTransaction object → sign with viem/ethers, submit to Base RPC
    *
    * @param request Same parameters as getQuote()
-   * @returns Transaction to sign and metadata (includes orderId for tracking)
+   * @returns Transaction to sign and orderId for tracking
    */
   async executeSwap(request: QuoteRequest): Promise<ExecuteSwapResponse> {
     const validated = quoteRequestSchema.parse(request);
@@ -115,11 +115,11 @@ export class ClawSwapClient {
   }
 
   /**
-   * Get the current swap fee
+   * Get the current swap fee breakdown
    * Free endpoint - no x402 payment required
    */
-  async getSwapFee(): Promise<SwapFeeResponse> {
-    return this.http.get<SwapFeeResponse>('/api/swap/fee');
+  async getSwapFee(): Promise<SwapFeeBreakdown> {
+    return this.http.get<SwapFeeBreakdown>('/api/swap/fee');
   }
 
   /**

@@ -24,7 +24,7 @@
 
 import dotenv from 'dotenv';
 import { ClawSwapClient } from '@clawswap/sdk';
-import type { QuoteResponse, ExecuteSwapResponse, StatusResponse, SwapFeeResponse, Chain, Token } from '@clawswap/sdk';
+import type { QuoteResponse, ExecuteSwapResponse, StatusResponse, SwapFeeBreakdown, Chain, Token } from '@clawswap/sdk';
 
 dotenv.config();
 
@@ -100,16 +100,18 @@ async function testDiscovery(client: ClawSwapClient): Promise<void> {
   assert(baseUsdc !== undefined, 'Base USDC found');
   assert(baseUsdc?.chainId === 'base', 'Base USDC chainId is "base"');
 
-  const fee: SwapFeeResponse = await client.getSwapFee();
-  assert(typeof fee.amount === 'number', 'getSwapFee() returns amount (number)');
-  assert(typeof fee.currency === 'string', 'getSwapFee() returns currency (string)');
-  assert(typeof fee.network === 'string', 'getSwapFee() returns network (string)');
-  assert(typeof fee.description === 'string', 'getSwapFee() returns description (string)');
+  const fee: SwapFeeBreakdown = await client.getSwapFee();
+  assert(typeof fee.x402Fee === 'object', 'getSwapFee() returns x402Fee object');
+  assert(typeof fee.x402Fee.amountUsd === 'number', 'x402Fee.amountUsd is a number');
+  assert(typeof fee.x402Fee.currency === 'string', 'x402Fee.currency is a string');
+  assert(typeof fee.gasReimbursement === 'object', 'getSwapFee() returns gasReimbursement object');
+  assert(typeof fee.bridgeFee === 'object', 'getSwapFee() returns bridgeFee object');
+  assert(typeof fee.note === 'string', 'getSwapFee() returns note (string)');
 
   console.log(`\n  Chains: ${chains.map((c) => c.id).join(', ')}`);
   console.log(`  Solana tokens: ${solanaTokens.length}`);
   console.log(`  Base tokens: ${baseTokens.length}`);
-  console.log(`  Swap fee: ${fee.amount} ${fee.currency} on ${fee.network}`);
+  console.log(`  x402 fee: $${fee.x402Fee.amountUsd} ${fee.x402Fee.currency} on ${fee.x402Fee.network}`);
 }
 
 // ─── Section 2: Quote ────────────────────────────────────────────────────────

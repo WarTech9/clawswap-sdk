@@ -178,8 +178,7 @@ export const swapCommand = new Command('swap')
       logger.success(`Swap transaction received!`);
       logger.table({
         'Order ID': executeResponse.orderId,
-        'Transaction Size': `${executeResponse.transaction.length} bytes`,
-        'Gas Reimbursement': executeResponse.accounting.gasReimbursement.amountFormatted,
+        'Gas Reimbursement': executeResponse.accounting.gasReimbursement?.amountFormatted ?? 'N/A (EVM source)',
         'x402 Fee (USD)': `$${executeResponse.accounting.x402Fee.amountUsd}`,
         'Is Token-2022': executeResponse.isToken2022 ? 'Yes' : 'No',
       });
@@ -187,108 +186,163 @@ export const swapCommand = new Command('swap')
       console.log();
       logger.info('Step 2b: Signing and submitting transaction...');
 
-      // Decode, sign, and submit transaction
-      const bs58 = await import('bs58');
-      const { Connection, Transaction, Keypair } = await import('@solana/web3.js');
+      if (Array.isArray(executeResponse.transactions)) {
+        // ===== EVM SOURCE PATH (Base → Solana) =====
+        logger.info(`EVM transactions received (${executeResponse.transactions.length} step(s)) — signing and submitting to Base...`);
 
-      // Get private key for transaction signing (same as payment key)
-      const signingKey = paymentChain === 'solana'
-        ? config.SOLANA_PRIVATE_KEY
-        : config.SOLANA_PRIVATE_KEY; // For now, always use Solana key for tx signing
+        if (!config.EVM_PRIVATE_KEY) {
+          throw new Error('EVM_PRIVATE_KEY not set for Base transaction signing. Set it in .env.');
+        }
 
-      if (!signingKey) {
-        throw new Error('SOLANA_PRIVATE_KEY not set for transaction signing');
-      }
+        const { createWalletClient, createPublicClient, http } = await import('viem');
+        const { privateKeyToAccount } = await import('viem/accounts');
+        const { base } = await import('viem/chains');
 
-      // Decode transaction from base64
-      const txBuffer = Buffer.from(executeResponse.transaction, 'base64');
-      const transaction = Transaction.from(txBuffer);
-
-      logger.info(`Transaction has ${transaction.signatures.length} signature slots`);
-      logger.info(`Instructions: ${transaction.instructions.length}`);
-
-      // Log transaction details
-      console.log('\nTransaction Structure:');
-      console.log(`  Recent Blockhash: ${transaction.recentBlockhash}`);
-      console.log(`  Fee Payer: ${transaction.feePayer?.toBase58()}`);
-      console.log(`\nSignature Slots:`);
-      transaction.signatures.forEach((sig, i) => {
-        console.log(`  ${i}: ${sig.publicKey.toBase58()} - ${sig.signature ? 'SIGNED' : 'UNSIGNED'}`);
-      });
-
-      console.log(`\nInstructions:`);
-      transaction.instructions.forEach((ix, i) => {
-        console.log(`  Instruction ${i}:`);
-        console.log(`    Program: ${ix.programId.toBase58()}`);
-        console.log(`    Accounts: ${ix.keys.length}`);
-        console.log(`    Data length: ${ix.data.length} bytes`);
-        ix.keys.forEach((key, j) => {
-          console.log(`      ${j}: ${key.pubkey.toBase58()} ${key.isSigner ? '[SIGNER]' : ''} ${key.isWritable ? '[WRITABLE]' : ''}`);
+        const account = privateKeyToAccount(config.EVM_PRIVATE_KEY as `0x${string}`);
+        const walletClient = createWalletClient({
+          account,
+          chain: base,
+          transport: http(),
         });
-      });
-      console.log();
+        const publicClient = createPublicClient({
+          chain: base,
+          transport: http(),
+        });
 
-      // Sign with user's keypair (using legacy web3.js since transaction is in legacy format)
-      const secretKey = bs58.default.decode(signingKey);
-      const keypair = Keypair.fromSecretKey(secretKey);
+        logger.info(`Signing with address: ${account.address}`);
 
-      logger.info(`Signing with pubkey: ${keypair.publicKey.toBase58()}`);
-      logger.info(`Expected sender: ${options.sender}`);
+        try {
+          for (const [i, evmTx] of executeResponse.transactions.entries()) {
+            const stepLabel = evmTx.description
+              ? `${i + 1}/${executeResponse.transactions.length}: ${evmTx.description}`
+              : `${i + 1}/${executeResponse.transactions.length}`;
+            logger.info(`Submitting EVM transaction ${stepLabel}...`);
 
-      // Verify we're signing with the correct key
-      if (keypair.publicKey.toBase58() !== options.sender) {
-        throw new Error(
-          `Key mismatch! Private key is for ${keypair.publicKey.toBase58()} but sender is ${options.sender}`
+            logger.table({
+              'Contract': evmTx.to,
+              'Chain ID': evmTx.chainId,
+              'Value': evmTx.value,
+            });
+
+            const txHash = await walletClient.sendTransaction({
+              to: evmTx.to as `0x${string}`,
+              data: evmTx.data as `0x${string}`,
+              value: BigInt(evmTx.value),
+            });
+
+            logger.success(`Transaction ${stepLabel} submitted!`);
+            logger.table({
+              'Transaction Hash': txHash,
+              'BaseScan': `https://basescan.org/tx/${txHash}`,
+            });
+
+            // Wait for confirmation before next tx
+            await publicClient.waitForTransactionReceipt({ hash: txHash });
+            logger.success(`Transaction ${stepLabel} confirmed.`);
+          }
+
+          console.log();
+          logger.success('All EVM transactions submitted to Base!');
+          console.log();
+        } catch (error: any) {
+          logger.error('EVM transaction failed:', error.message);
+          throw error;
+        }
+      } else if (typeof executeResponse.transaction === 'string') {
+        // ===== SOLANA SOURCE PATH (Solana → Base) =====
+        const bs58 = await import('bs58');
+        const { Connection, Transaction, Keypair } = await import('@solana/web3.js');
+
+        if (!config.SOLANA_PRIVATE_KEY) {
+          throw new Error('SOLANA_PRIVATE_KEY not set for Solana transaction signing');
+        }
+
+        // Decode transaction from base64
+        const txBuffer = Buffer.from(executeResponse.transaction, 'base64');
+        const transaction = Transaction.from(txBuffer);
+
+        logger.info(`Transaction has ${transaction.signatures.length} signature slots`);
+        logger.info(`Instructions: ${transaction.instructions.length}`);
+
+        // Log transaction details
+        console.log('\nTransaction Structure:');
+        console.log(`  Recent Blockhash: ${transaction.recentBlockhash}`);
+        console.log(`  Fee Payer: ${transaction.feePayer?.toBase58()}`);
+        console.log(`\nSignature Slots:`);
+        transaction.signatures.forEach((sig, i) => {
+          console.log(`  ${i}: ${sig.publicKey.toBase58()} - ${sig.signature ? 'SIGNED' : 'UNSIGNED'}`);
+        });
+
+        console.log(`\nInstructions:`);
+        transaction.instructions.forEach((ix, i) => {
+          console.log(`  Instruction ${i}:`);
+          console.log(`    Program: ${ix.programId.toBase58()}`);
+          console.log(`    Accounts: ${ix.keys.length}`);
+          console.log(`    Data length: ${ix.data.length} bytes`);
+          ix.keys.forEach((key, j) => {
+            console.log(`      ${j}: ${key.pubkey.toBase58()} ${key.isSigner ? '[SIGNER]' : ''} ${key.isWritable ? '[WRITABLE]' : ''}`);
+          });
+        });
+        console.log();
+
+        // Sign with user's keypair
+        const secretKey = bs58.default.decode(config.SOLANA_PRIVATE_KEY);
+        const keypair = Keypair.fromSecretKey(secretKey);
+
+        logger.info(`Signing with pubkey: ${keypair.publicKey.toBase58()}`);
+        logger.info(`Expected sender: ${options.sender}`);
+
+        if (keypair.publicKey.toBase58() !== options.sender) {
+          throw new Error(
+            `Key mismatch! Private key is for ${keypair.publicKey.toBase58()} but sender is ${options.sender}`
+          );
+        }
+
+        transaction.partialSign(keypair);
+        logger.info('Transaction signed, preparing to submit...');
+
+        const connection = new Connection(
+          'https://api.mainnet-beta.solana.com',
+          'confirmed'
         );
-      }
 
-      // Add user signature to partially-signed transaction
-      transaction.partialSign(keypair);
+        const serialized = transaction.serialize();
+        logger.info('Submitting transaction to Solana...');
 
-      logger.info('Transaction signed, preparing to submit...');
+        try {
+          const signature = await connection.sendRawTransaction(serialized, {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
 
-      // Submit to Solana RPC
-      logger.info('Connecting to Solana mainnet...');
-      const connection = new Connection(
-        'https://api.mainnet-beta.solana.com',
-        'confirmed'
-      );
+          logger.success(`Transaction submitted!`);
+          console.log();
+          logger.table({
+            'Transaction Signature': signature,
+            'Solscan': `https://solscan.io/tx/${signature}`,
+            'Explorer': `https://explorer.solana.com/tx/${signature}`,
+          });
 
-      const serialized = transaction.serialize();
-      logger.info('Submitting transaction to Solana...');
+          console.log();
+          logger.info('Waiting for transaction confirmation...');
 
-      try {
-        const signature = await connection.sendRawTransaction(serialized, {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-        });
+          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
-        logger.success(`Transaction submitted!`);
-        console.log();
-        logger.table({
-          'Transaction Signature': signature,
-          'Solscan': `https://solscan.io/tx/${signature}`,
-          'Explorer': `https://explorer.solana.com/tx/${signature}`,
-        });
+          if (confirmation.value.err) {
+            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          }
 
-        console.log();
-        logger.info('⏳ Waiting for transaction confirmation...');
-
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-
-        if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+          logger.success('Transaction confirmed on Solana!');
+          console.log();
+        } catch (error: any) {
+          if (error.logs) {
+            logger.error('Transaction simulation logs:');
+            error.logs.forEach((log: string) => console.log(`  ${log}`));
+          }
+          throw error;
         }
-
-        logger.success('✅ Transaction confirmed on Solana!');
-        console.log();
-      } catch (error: any) {
-        // Enhanced error handling for SendTransactionError
-        if (error.logs) {
-          logger.error('Transaction simulation logs:');
-          error.logs.forEach((log: string) => console.log(`  ${log}`));
-        }
-        throw error;
+      } else {
+        throw new Error('Unexpected execute response: no transaction (string) or transactions (array) found');
       }
 
 

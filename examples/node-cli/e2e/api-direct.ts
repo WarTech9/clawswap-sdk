@@ -125,11 +125,13 @@ async function testDiscovery(): Promise<void> {
   assert(baseUsdc?.chainId === 'base', 'Base USDC chainId is "base"');
 
   const fee = await apiGet<any>('/api/swap/fee');
-  assert(typeof fee.amount === 'number', 'Swap fee has amount (number)');
-  assert(typeof fee.currency === 'string', 'Swap fee has currency (string)');
-  assert(typeof fee.network === 'string', 'Swap fee has network (string)');
-  assert(typeof fee.description === 'string', 'Swap fee has description (string)');
-  console.log(`\n  Swap fee: ${fee.amount} ${fee.currency} on ${fee.network}`);
+  assert(typeof fee.x402Fee === 'object', 'Swap fee has x402Fee object');
+  assert(typeof fee.x402Fee.amountUsd === 'number', 'x402Fee.amountUsd is a number');
+  assert(typeof fee.x402Fee.currency === 'string', 'x402Fee.currency is a string');
+  assert(typeof fee.gasReimbursement === 'object', 'Swap fee has gasReimbursement object');
+  assert(typeof fee.bridgeFee === 'object', 'Swap fee has bridgeFee object');
+  assert(typeof fee.note === 'string', 'Swap fee has note (string)');
+  console.log(`\n  x402 fee: $${fee.x402Fee.amountUsd} ${fee.x402Fee.currency} on ${fee.x402Fee.network}`);
 }
 
 // ─── Section 2: Quote ────────────────────────────────────────────────────────
