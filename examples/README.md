@@ -53,9 +53,9 @@ pnpm example:node -- status <swapId>
 
 [Full Documentation →](./node-cli/README.md)
 
-### 2. Browser Example
+### 2. Browser Example (Raw viem)
 
-Interactive web application with wallet connection.
+Interactive web application with direct MetaMask/injected wallet integration.
 
 ```bash
 # Start dev server
@@ -65,6 +65,28 @@ pnpm example:browser
 ```
 
 [Full Documentation →](./browser/README.md)
+
+### 3. Browser Example (wagmi + ConnectKit)
+
+Production-ready React app with wagmi v2 wallet management. Supports MetaMask, Coinbase Wallet, WalletConnect, and more.
+
+```bash
+# Start dev server
+pnpm example:browser-wagmi
+
+# Open http://localhost:5174
+```
+
+[Full Documentation →](./browser-wagmi/README.md)
+
+### Choosing a Browser Example
+
+| Feature | Raw viem (`browser/`) | wagmi + ConnectKit (`browser-wagmi/`) |
+|---------|----------------------|--------------------------------------|
+| Wallet support | MetaMask (injected) | MetaMask, Coinbase, WalletConnect, etc. |
+| Chain switching | Manual | Automatic |
+| Dependencies | `viem` | `wagmi`, `viem`, `connectkit` |
+| Best for | Simple apps, non-React | Production React/Next.js |
 
 ## Test Modes
 
@@ -117,7 +139,9 @@ examples/
 │   └── validators.ts            # Input validation
 ├── node-cli/                    # Node.js CLI example
 │   └── ...
-└── browser/                     # Browser example
+├── browser/                     # Browser example (raw viem)
+│   └── ...
+└── browser-wagmi/               # Browser example (wagmi + ConnectKit)
     └── ...
 ```
 
@@ -151,9 +175,15 @@ CLAWSWAP_API_URL=https://...    # Optional: override API URL
 TEST_MODE=dry-run                # mock | dry-run | full
 ```
 
-### Browser (`.env`)
+### Browser — Raw viem (`.env`)
 ```bash
 VITE_CLAWSWAP_API_URL=https://...  # Optional: override API URL
+```
+
+### Browser — wagmi (`.env`)
+```bash
+VITE_CLAWSWAP_API_URL=https://...  # Optional: override API URL
+VITE_WC_PROJECT_ID=...             # Optional: WalletConnect project ID
 ```
 
 ## Running in CI/CD

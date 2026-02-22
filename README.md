@@ -20,12 +20,12 @@ Learn more: [x402.org](https://x402.org)
 
 ## Prerequisites
 
-Before using ClawSwap, you need:
-
-- **Node.js** >= 18.0.0
+- **Node.js** >= 18.0.0 (server-side) or **modern browser** (client-side — Chrome, Firefox, Safari, Edge)
 - **Package Manager**: npm, pnpm, or yarn
-- **For Solana → Base swaps**: Solana wallet with private key (base58-encoded), 0.5 USDC (swap fee), ~0.01 SOL (gas)
-- **For Base → Solana swaps**: EVM wallet with private key (0x-prefixed hex), USDC on Base, small amount of ETH on Base (~$0.001 gas)
+- **For Solana → Base swaps**: Solana wallet with 0.5 USDC (swap fee) + ~0.01 SOL (gas)
+- **For Base → Solana swaps**: EVM wallet with USDC on Base + small amount of ETH (~$0.001 gas)
+
+> The SDK has zero Node.js dependencies and works in any environment with the Fetch API.
 
 <details>
 <summary>Getting a Solana Wallet</summary>
@@ -204,6 +204,73 @@ const result = await client.waitForSettlement(swap.orderId, {
 });
 console.log(`Swap completed: ${result.destinationAmount} tokens delivered`);
 ```
+
+## Web App Integration
+
+The SDK works natively in the browser — no polyfills or Node.js shims needed. For a comprehensive guide, see [Web Integration Guide](./docs/web-integration.md).
+
+### Browser Quick Start (Base → Solana)
+
+```bash
+npm install @clawswap/sdk viem
+```
+
+```typescript
+import { ClawSwapClient, isEvmSource } from '@clawswap/sdk';
+import { createWalletClient, createPublicClient, custom, http } from 'viem';
+import { base } from 'viem/chains';
+
+// 1. Connect browser wallet (MetaMask, Coinbase Wallet, etc.)
+const [account] = await window.ethereum.request({ method: 'eth_requestAccounts' });
+const walletClient = createWalletClient({
+  account,
+  chain: base,
+  transport: custom(window.ethereum),
+});
+
+// 2. Create SDK client (no x402 payment needed for Base source — it's free)
+const client = new ClawSwapClient();
+
+// 3. Execute swap
+const swap = await client.executeSwap({
+  sourceChainId: 'base',
+  sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
+  destinationChainId: 'solana',
+  destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+  amount: '1000000', // 1 USDC
+  senderAddress: account,
+  recipientAddress: 'your-solana-address',
+});
+
+// 4. Sign and submit with browser wallet (MetaMask will pop up)
+if (isEvmSource(swap)) {
+  const publicClient = createPublicClient({ chain: base, transport: http() });
+  for (const tx of swap.transactions) {
+    const hash = await walletClient.sendTransaction({
+      to: tx.to as `0x${string}`,
+      data: tx.data as `0x${string}`,
+      value: BigInt(tx.value),
+    });
+    await publicClient.waitForTransactionReceipt({ hash });
+    console.log(`TX confirmed: https://basescan.org/tx/${hash}`);
+  }
+}
+
+// 5. Monitor settlement
+const result = await client.waitForSettlement(swap.orderId, {
+  timeout: 300_000,
+  onStatusUpdate: (s) => console.log(`Status: ${s.status}`),
+});
+```
+
+### Integration Approaches
+
+| Approach | Dependencies | Best For |
+|----------|-------------|----------|
+| **Raw viem** | `viem` | Simple apps, custom wallet UIs |
+| **wagmi + ConnectKit** | `wagmi`, `viem`, `connectkit` | Production React/Next.js apps |
+
+See [examples/browser/](./examples/browser/) for raw viem and [examples/browser-wagmi/](./examples/browser-wagmi/) for wagmi v2.
 
 ## Supported Frameworks
 

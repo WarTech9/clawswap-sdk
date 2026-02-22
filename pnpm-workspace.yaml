@@ -2,3 +2,4 @@ packages:
   - 'packages/*'
   - 'examples/node-cli'
   - 'examples/browser'
+  - 'examples/browser-wagmi'

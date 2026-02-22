@@ -230,8 +230,7 @@ async function testExecute(): Promise<ExecuteSwapResponse | null> {
   console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
   console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
 
-  return response;
-}
+}dwa xmcfr
 
 // ─── Section 4: Status ───────────────────────────────────────────────────────
 

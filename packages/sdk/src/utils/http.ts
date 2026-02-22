@@ -12,7 +12,7 @@ export class HttpClient {
 
   constructor(config: ClawSwapConfig) {
     this.baseUrl = config.baseUrl || 'https://api.clawswap.dev';
-    this.fetch = config.fetch || globalThis.fetch;
+    this.fetch = config.fetch || globalThis.fetch.bind(globalThis);
     this.timeout = config.timeout || 30000;
     this.headers = {
       'Content-Type': 'application/json',

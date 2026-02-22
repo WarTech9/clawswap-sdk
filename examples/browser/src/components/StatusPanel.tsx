@@ -29,7 +29,7 @@ export function StatusPanel({ client, swapId }: Props) {
       setStatus(result);
 
       // Stop polling on terminal status
-      if (['completed', 'failed', 'expired'].includes(result.status)) {
+      if (['completed', 'fulfilled', 'failed', 'cancelled'].includes(result.status)) {
         setPolling(false);
       }
     } catch (err) {
@@ -46,9 +46,10 @@ export function StatusPanel({ client, swapId }: Props) {
     return <div className="loading">Loading status...</div>;
   }
 
-  const statusClass = status.status === 'completed' ? 'success' :
+  const isSuccess = status.status === 'completed' || status.status === 'fulfilled';
+  const statusClass = isSuccess ? 'success' :
                       status.status === 'failed' ? 'error' :
-                      status.status === 'expired' ? 'warning' :
+                      status.status === 'cancelled' ? 'warning' :
                       'info';
 
   return (
@@ -59,8 +60,8 @@ export function StatusPanel({ client, swapId }: Props) {
 
       <div className="status-details">
         <div className="detail-row">
-          <span>Swap ID:</span>
-          <code>{status.swapId}</code>
+          <span>Order ID:</span>
+          <code>{status.orderId}</code>
         </div>
         <div className="detail-row">
           <span>Source:</span>
@@ -70,46 +71,47 @@ export function StatusPanel({ client, swapId }: Props) {
           <span>Destination:</span>
           <span>{status.destinationChainId}: {status.destinationAmount}</span>
         </div>
+        {status.sourceTxHash && (
+          <div className="detail-row">
+            <span>Source TX:</span>
+            <code>{status.sourceTxHash.slice(0, 10)}...{status.sourceTxHash.slice(-8)}</code>
+          </div>
+        )}
+        {status.destinationTxHash && (
+          <div className="detail-row">
+            <span>Destination TX:</span>
+            {status.explorerUrl ? (
+              <a href={status.explorerUrl} target="_blank" rel="noopener noreferrer">
+                {status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}
+              </a>
+            ) : (
+              <code>{status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}</code>
+            )}
+          </div>
+        )}
+        {status.estimatedCompletionTime && (
+          <div className="detail-row">
+            <span>Estimated completion:</span>
+            <span>{new Date(status.estimatedCompletionTime).toLocaleTimeString()}</span>
+          </div>
+        )}
       </div>
 
-      {status.transactions && status.transactions.length > 0 && (
-        <div className="transactions">
-          <h4>Transactions</h4>
-          {status.transactions.map((tx, i) => (
-            <div key={i} className="transaction">
-              <div className="tx-header">
-                <span className="tx-chain">{tx.chainId}</span>
-                <span className={`tx-status ${tx.status}`}>{tx.status}</span>
-              </div>
-              <div className="tx-hash">
-                {tx.explorerUrl ? (
-                  <a href={tx.explorerUrl} target="_blank" rel="noopener noreferrer">
-                    {tx.txHash.slice(0, 10)}...{tx.txHash.slice(-8)}
-                  </a>
-                ) : (
-                  <code>{tx.txHash.slice(0, 10)}...{tx.txHash.slice(-8)}</code>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {status.status === 'completed' && (
+      {isSuccess && (
         <div className="success-message">
-          ✨ Swap completed successfully! You received {status.destinationAmount} tokens.
+          Swap completed successfully! You received {status.destinationAmount} tokens.
         </div>
       )}
 
       {status.status === 'failed' && status.failureReason && (
         <div className="error-message">
-          ❌ Swap failed: {status.failureReason}
+          Swap failed: {status.failureReason}
         </div>
       )}
 
       {polling && (
         <div className="polling-indicator">
-          <span className="spinner">⟳</span>
+          <span className="spinner">&#x21BB;</span>
           <span>Polling for updates...</span>
         </div>
       )}

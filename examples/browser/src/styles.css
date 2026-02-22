@@ -25,6 +25,13 @@
   margin-bottom: 20px;
 }
 
+.wallet-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .wallet-info {
   display: inline-flex;
   align-items: center;
@@ -37,11 +44,17 @@
 
 .connected-badge {
   color: #4ade80;
-  font-size: 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.connected-badge.phantom {
+  color: #ab9ff2;
 }
 
 .address {
   font-weight: 500;
+  font-size: 0.9rem;
 }
 
 /* Main Content */
@@ -138,6 +151,16 @@
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #ab9ff2 0%, #7c3aed 100%);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(171, 159, 242, 0.4);
 }
 
 .btn-large {

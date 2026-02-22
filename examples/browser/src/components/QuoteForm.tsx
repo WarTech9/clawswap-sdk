@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
 import { ClawSwapClient, Chain, Token, QuoteResponse } from '@clawswap/sdk';
 
+export interface SwapParams {
+  quote: QuoteResponse;
+  sourceChainId: string;
+  sourceTokenAddress: string;
+  destinationChainId: string;
+  destinationTokenAddress: string;
+  senderAddress: string;
+  recipientAddress: string;
+}
+
 interface Props {
   client: ClawSwapClient;
   walletAddress?: string;
-  onQuote?: (quote: QuoteResponse) => void;
+  onSwapParams?: (params: SwapParams) => void;
 }
 
-export function QuoteForm({ client, walletAddress, onQuote }: Props) {
+export function QuoteForm({ client, walletAddress, onSwapParams }: Props) {
   const [chains, setChains] = useState<Chain[]>([]);
   const [sourceChain, setSourceChain] = useState('');
   const [destChain, setDestChain] = useState('');
@@ -75,7 +85,15 @@ export function QuoteForm({ client, walletAddress, onQuote }: Props) {
       });
 
       setQuote(result);
-      onQuote?.(result);
+      onSwapParams?.({
+        quote: result,
+        sourceChainId: sourceChain,
+        sourceTokenAddress: sourceToken,
+        destinationChainId: destChain,
+        destinationTokenAddress: destToken,
+        senderAddress,
+        recipientAddress,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get quote');
     } finally {
@@ -212,7 +230,7 @@ export function QuoteForm({ client, walletAddress, onQuote }: Props) {
           <div className="quote-details">
             <div className="detail-row">
               <span>Quote ID:</span>
-              <code>{quote.id}</code>
+              <code>{quote.quoteId}</code>
             </div>
             <div className="detail-row">
               <span>You send:</span>
@@ -224,14 +242,14 @@ export function QuoteForm({ client, walletAddress, onQuote }: Props) {
             </div>
             <div className="detail-row">
               <span>Total fee:</span>
-              <span>${quote.fees.totalFeeUsd}</span>
+              <span>${quote.fees.totalEstimatedFeeUsd.toFixed(2)}</span>
             </div>
             <div className="detail-row">
               <span>Estimated time:</span>
               <span>{quote.estimatedTimeSeconds}s</span>
             </div>
             <div className="detail-row warning">
-              <span>⏱ Expires in:</span>
+              <span>Expires in:</span>
               <strong>{quote.expiresIn}s</strong>
             </div>
           </div>
