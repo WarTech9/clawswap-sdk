@@ -125,13 +125,13 @@ const client = new ClawSwapClient({ fetch: fetchWithPayment });
 
 // 2. Execute swap
 const swap = await client.executeSwap({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  sourceChain: 'solana',
+  sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  destinationChain: 'base',
+  destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   amount: '1000000',
-  senderAddress: 'your-solana-address',
-  recipientAddress: '0x-your-base-address',
+  userWallet: 'your-solana-address',
+  recipient: '0x-your-base-address',
 });
 
 // 3. Sign and submit to Solana
@@ -148,12 +148,12 @@ const signature = await connection.sendRawTransaction(tx.serialize(), {
 await connection.confirmTransaction(signature, 'confirmed');
 
 // 4. Wait for settlement
-const result = await client.waitForSettlement(swap.orderId, {
+const result = await client.waitForSettlement(swap.requestId, {
   timeout: 300_000,
   interval: 3000,
   onStatusUpdate: (status) => console.log(`Status: ${status.status}`),
 });
-console.log(`Swap completed: ${result.destinationAmount} tokens delivered`);
+console.log(`Swap completed: ${result.outputAmount} tokens delivered`);
 ```
 
 ### Base → Solana (free, no x402)
@@ -170,13 +170,13 @@ const client = new ClawSwapClient();
 
 // 2. Execute swap
 const swap = await client.executeSwap({
-  sourceChainId: 'base',
-  sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  destinationChainId: 'solana',
-  destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  sourceChain: 'base',
+  sourceToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  destinationChain: 'solana',
+  destinationToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   amount: '1000000',
-  senderAddress: '0x-your-base-address',
-  recipientAddress: 'your-solana-address',
+  userWallet: '0x-your-base-address',
+  recipient: 'your-solana-address',
 });
 
 // 3. Sign and submit to Base (execute transactions in order)
@@ -197,12 +197,12 @@ if (isEvmSource(swap)) {
 }
 
 // 4. Wait for settlement
-const result = await client.waitForSettlement(swap.orderId, {
+const result = await client.waitForSettlement(swap.requestId, {
   timeout: 300_000,
   interval: 3000,
   onStatusUpdate: (status) => console.log(`Status: ${status.status}`),
 });
-console.log(`Swap completed: ${result.destinationAmount} tokens delivered`);
+console.log(`Swap completed: ${result.outputAmount} tokens delivered`);
 ```
 
 ## Web App Integration
@@ -233,13 +233,13 @@ const client = new ClawSwapClient();
 
 // 3. Execute swap
 const swap = await client.executeSwap({
-  sourceChainId: 'base',
-  sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
-  destinationChainId: 'solana',
-  destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+  sourceChain: 'base',
+  sourceToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
+  destinationChain: 'solana',
+  destinationToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
   amount: '1000000', // 1 USDC
-  senderAddress: account,
-  recipientAddress: 'your-solana-address',
+  userWallet: account,
+  recipient: 'your-solana-address',
 });
 
 // 4. Sign and submit with browser wallet (MetaMask will pop up)
@@ -257,7 +257,7 @@ if (isEvmSource(swap)) {
 }
 
 // 5. Monitor settlement
-const result = await client.waitForSettlement(swap.orderId, {
+const result = await client.waitForSettlement(swap.requestId, {
   timeout: 300_000,
   onStatusUpdate: (s) => console.log(`Status: ${s.status}`),
 });

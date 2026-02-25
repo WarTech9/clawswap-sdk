@@ -28,12 +28,12 @@ describe('Polling Utilities', () => {
       expect(isTerminalStatus('pending')).toBe(false);
     });
 
-    it('should return false for bridging status', () => {
-      expect(isTerminalStatus('bridging')).toBe(false);
+    it('should return false for submitted status', () => {
+      expect(isTerminalStatus('submitted')).toBe(false);
     });
 
-    it('should return false for settling status', () => {
-      expect(isTerminalStatus('settling')).toBe(false);
+    it('should return false for filling status', () => {
+      expect(isTerminalStatus('filling')).toBe(false);
     });
   });
 
@@ -84,7 +84,7 @@ describe('Polling Utilities', () => {
       expect(result).toBe(2);
     });
 
-    it('should include timeout details in error', async () => {
+    it('should include suggestion in timeout error', async () => {
       const mockFn = vi.fn(async () => 'pending');
 
       try {
@@ -93,8 +93,7 @@ describe('Polling Utilities', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(TimeoutError);
         if (error instanceof TimeoutError) {
-          expect(error.details?.timeoutMs).toBe(50);
-          expect(error.details?.elapsedMs).toBeGreaterThanOrEqual(50);
+          expect(error.suggestion).toBe('Increase timeout or check network connectivity');
         }
       }
     });
@@ -103,8 +102,8 @@ describe('Polling Utilities', () => {
       let status: StatusResponse['status'] = 'pending';
       const mockFn = vi.fn(async () => {
         await sleep(5);
-        if (status === 'pending') status = 'bridging';
-        else if (status === 'bridging') status = 'completed';
+        if (status === 'pending') status = 'submitted';
+        else if (status === 'submitted') status = 'completed';
         return { status } as StatusResponse;
       });
 

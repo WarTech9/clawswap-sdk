@@ -1,6 +1,6 @@
 /**
- * Core types for ClawSwap SDK
- * Generated from OpenAPI spec with manual refinements
+ * Core types for ClawSwap SDK v2
+ * Aligned with the v2 API at api.clawswap.dev
  */
 
 // ============================================================================
@@ -17,32 +17,6 @@ export interface Chain {
   blockExplorerUrl?: string;
   isTestnet?: boolean;
 }
-
-export interface SwapFeeBreakdown {
-  x402Fee: {
-    amountUsd: number;
-    currency: string;
-    network: string;
-    appliesTo: string;
-    description: string;
-  };
-  gasReimbursement: {
-    estimatedUsd: string;
-    currency: string;
-    appliesTo: string;
-    description: string;
-  };
-  bridgeFee: {
-    estimatedUsd: string;
-    currency: string;
-    appliesTo: string;
-    description: string;
-  };
-  note: string;
-}
-
-/** @deprecated Use SwapFeeBreakdown */
-export type SwapFeeResponse = SwapFeeBreakdown;
 
 export interface Token {
   address: string;
@@ -65,23 +39,37 @@ export interface TokenPair {
   destinationToken: Token;
 }
 
+export interface SwapFeeBreakdown {
+  x402Fee: {
+    amountUsd: number;
+    currency: string;
+    network: string;
+    appliesTo: string;
+    description: string;
+  };
+  gasReimbursement: null | Record<string, unknown>;
+  bridgeFee: {
+    estimatedUsd: string;
+    currency: string;
+    appliesTo: string;
+    description: string;
+  };
+  note: string;
+}
+
 // ============================================================================
 // Request Types
 // ============================================================================
 
 export interface QuoteRequest {
-  sourceChainId: string;
-  sourceTokenAddress: string;
-  destinationChainId: string;
-  destinationTokenAddress: string;
-  amount: string; // String to handle big numbers
-  senderAddress: string; // Sender's wallet address on source chain
-  recipientAddress: string; // Recipient's wallet address on destination chain
-  slippageTolerance?: number; // Optional, 0-1 (e.g., 0.01 = 1%)
-}
-
-export interface StatusRequest {
-  orderId: string;
+  sourceChain: string;
+  sourceToken: string;
+  destinationChain: string;
+  destinationToken: string;
+  amount: string;
+  userWallet: string;
+  recipient: string;
+  slippageTolerance?: number;
 }
 
 // ============================================================================
@@ -89,18 +77,21 @@ export interface StatusRequest {
 // ============================================================================
 
 export interface QuoteResponse {
-  quoteId: string;
-  sourceAmount: string;
-  destinationAmount: string;
+  estimatedOutput: string;
+  estimatedOutputFormatted: string;
+  estimatedTime: number;
   fees: {
-    bridgeFeeUsd: number;
-    x402FeeUsd: number;
-    gasReimbursementEstimatedUsd: number;
-    totalEstimatedFeeUsd: number;
+    clawswap: string;
+    relay: string;
+    gas: string;
   };
-  estimatedTimeSeconds: number;
-  expiresAt: string; // ISO 8601 timestamp
-  expiresIn: number; // Seconds until expiry (30s)
+  route: {
+    sourceChain: string;
+    sourceToken: { symbol: string; address: string; decimals: number };
+    destinationChain: string;
+    destinationToken: { symbol: string; address: string; decimals: number };
+  };
+  supported: boolean;
 }
 
 /** EVM transaction object returned for Base → Solana swaps */
@@ -115,6 +106,8 @@ export interface EvmTransaction {
   chainId: number;
   /** Human-readable step description (e.g. "Approve USDC spending") */
   description?: string;
+  /** Optional gas limit hint */
+  gas?: string;
 }
 
 /**
@@ -125,153 +118,99 @@ export interface EvmTransaction {
  * - EVM source: `transactions` is an ordered array of EVM transactions to execute sequentially
  */
 export interface ExecuteSwapResponse {
+  /** Request ID for tracking swap status via /api/swap/:id/status */
+  requestId: string;
   /** Base64-encoded partially-signed Solana transaction (Solana source only) */
   transaction?: string;
   /** Ordered array of EVM transactions to execute sequentially (EVM source only) */
   transactions?: EvmTransaction[];
-  /** Order ID for tracking swap status via /api/swap/:id/status */
-  orderId: string;
-  /** Whether the source token is Token-2022 (always false for EVM source) */
-  isToken2022: boolean;
-  /** Detailed fee and amount accounting */
-  accounting: {
-    x402Fee: {
-      amountUsd: number;
-      currency: string;
-      recipient: string;
-      note: string;
-    };
-    /** Gas reimbursement details. null for EVM-source swaps (no gas sponsorship). */
-    gasReimbursement: {
-      amountRaw: string;
-      amountFormatted: string;
-      tokenMint: string;
-      recipient: string;
-      note: string;
-    } | null;
-    bridgeFee: {
-      estimatedUsd: number;
-      note: string;
-    };
-    sourceAmount: string;
-    destinationAmount: string;
+  /** Source chain identifier */
+  sourceChain: string;
+  /** Estimated output amount in smallest units */
+  estimatedOutput: string;
+  /** Estimated settlement time in seconds */
+  estimatedTime: number;
+  /** Fee breakdown */
+  fees: {
+    clawswap: string;
+    relay: string;
+    gas: string;
   };
+  /** Human-readable instructions for signing and submitting */
+  instructions: string;
 }
 
 /** Check if the execute response is from a Solana source swap */
 export function isSolanaSource(
   response: ExecuteSwapResponse
 ): response is ExecuteSwapResponse & { transaction: string } {
-  return typeof response.transaction === 'string';
+  return typeof response.transaction === 'string' && !Array.isArray(response.transactions);
 }
 
 /** Check if the execute response is from an EVM source swap */
 export function isEvmSource(
   response: ExecuteSwapResponse
 ): response is ExecuteSwapResponse & { transactions: EvmTransaction[] } {
-  return Array.isArray(response.transactions);
+  return Array.isArray(response.transactions) && typeof response.transaction !== 'string';
 }
 
 /**
- * @deprecated Use `isEvmSource(response)` instead. The API now returns
- * `transactions` (array) for EVM source, not a single `transaction` object.
- */
-export function isEvmTransaction(
-  tx: unknown
-): tx is EvmTransaction {
-  if (typeof tx !== 'object' || tx === null) return false;
-  const candidate = tx as Record<string, unknown>;
-  return (
-    typeof candidate.to === 'string' &&
-    typeof candidate.data === 'string' &&
-    typeof candidate.value === 'string' &&
-    typeof candidate.chainId === 'number'
-  );
-}
-
-/**
- * Swap statuses from Relay API
- * Maps to Relay's order statuses
+ * Swap status values from the v2 API
  */
 export type SwapStatus =
-  | 'pending' // Order created but not yet submitted
-  | 'created' // Order submitted to Relay
-  | 'fulfilled' // Destination transaction confirmed
-  | 'completed' // Same as fulfilled (alias)
-  | 'cancelled' // Order cancelled
-  | 'failed'; // Order failed
-
-export interface SwapTransaction {
-  chainId: string;
-  txHash: string;
-  status: 'pending' | 'confirmed' | 'failed';
-  confirmations?: number;
-  explorerUrl?: string;
-}
+  | 'pending'
+  | 'submitted'
+  | 'filling'
+  | 'completed'
+  | 'failed';
 
 /**
  * Response from GET /api/swap/:id/status
- * Based on Relay's OrderInfo structure
  */
 export interface StatusResponse {
-  /** Order ID (same as quote ID) */
-  orderId: string;
-  /** Current order status */
+  /** Request ID */
+  requestId: string;
+  /** Current swap status */
   status: SwapStatus;
-  /** Source chain ID */
-  sourceChainId: string;
-  /** Destination chain ID */
-  destinationChainId: string;
-  /** Source amount in smallest unit */
-  sourceAmount: string;
-  /** Destination amount in smallest unit */
-  destinationAmount: string;
+  /** Source chain identifier */
+  sourceChain: string;
+  /** Destination chain identifier */
+  destinationChain: string;
+  /** Output amount in smallest units */
+  outputAmount: string;
   /** Source chain transaction hash */
   sourceTxHash?: string;
   /** Destination chain transaction hash */
   destinationTxHash?: string;
-  /** Block explorer URL for destination transaction */
-  explorerUrl?: string;
-  /** Order creation timestamp */
-  createdAt: string;
-  /** Last update timestamp */
-  updatedAt: string;
-  /** Estimated completion time */
-  estimatedCompletionTime?: string;
-  /** Failure reason if status is 'failed' */
-  failureReason?: string;
+  /** Completion timestamp (ISO 8601) */
+  completedAt?: string;
 }
-
-// For backwards compatibility during migration
-export type SwapResponse = ExecuteSwapResponse;
 
 // ============================================================================
 // Error Types
 // ============================================================================
 
 export type ErrorCode =
+  | 'MISSING_FIELD'
+  | 'UNSUPPORTED_CHAIN'
+  | 'UNSUPPORTED_ROUTE'
+  | 'QUOTE_FAILED'
   | 'INSUFFICIENT_LIQUIDITY'
   | 'AMOUNT_TOO_LOW'
   | 'AMOUNT_TOO_HIGH'
-  | 'UNSUPPORTED_PAIR'
-  | 'QUOTE_EXPIRED'
-  | 'INVALID_TOKEN_ADDRESS'
-  | 'INVALID_MINT_ADDRESS'
-  | 'INVALID_CHAIN_ID'
+  | 'GAS_EXCEEDS_THRESHOLD'
+  | 'RELAY_UNAVAILABLE'
   | 'PAYMENT_REQUIRED'
-  | 'PAYMENT_VERIFICATION_FAILED'
-  | 'SERVER_CONFIGURATION_ERROR'
-  | 'BRIDGE_API_ERROR'
-  | 'PRICE_FEED_UNAVAILABLE'
+  | 'RATE_LIMIT_EXCEEDED'
   | 'NETWORK_ERROR'
-  | 'TIMEOUT'
-  | 'TOKEN_2022_FEE_ERROR'
-  | 'UNKNOWN_ERROR';
+  | 'TIMEOUT';
 
 export interface ApiError {
-  code: ErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
+  error: {
+    code: ErrorCode;
+    message: string;
+    suggestion?: string;
+  };
 }
 
 // ============================================================================

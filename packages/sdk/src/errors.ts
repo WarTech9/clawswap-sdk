@@ -1,175 +1,193 @@
 import type { ErrorCode, ApiError } from './types';
 
 /**
- * Base error class for all ClawSwap SDK errors
+ * Base error class for all ClawSwap SDK errors (v2)
  */
 export class ClawSwapError extends Error {
   public readonly code: ErrorCode;
-  public readonly details?: Record<string, unknown>;
+  public readonly suggestion?: string;
 
-  constructor(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  constructor(code: ErrorCode, message: string, suggestion?: string) {
     super(message);
     this.name = 'ClawSwapError';
     this.code = code;
-    this.details = details;
+    this.suggestion = suggestion;
     Object.setPrototypeOf(this, ClawSwapError.prototype);
   }
 
   toJSON(): ApiError {
     return {
-      code: this.code,
-      message: this.message,
-      details: this.details,
+      error: {
+        code: this.code,
+        message: this.message,
+        ...(this.suggestion && { suggestion: this.suggestion }),
+      },
     };
   }
 }
 
-/**
- * Thrown when insufficient liquidity is available for the swap
- */
+export class MissingFieldError extends ClawSwapError {
+  constructor(message = 'Missing required field', suggestion?: string) {
+    super('MISSING_FIELD', message, suggestion);
+    this.name = 'MissingFieldError';
+    Object.setPrototypeOf(this, MissingFieldError.prototype);
+  }
+}
+
+export class UnsupportedChainError extends ClawSwapError {
+  constructor(message = 'Chain not supported', suggestion?: string) {
+    super('UNSUPPORTED_CHAIN', message, suggestion);
+    this.name = 'UnsupportedChainError';
+    Object.setPrototypeOf(this, UnsupportedChainError.prototype);
+  }
+}
+
+export class UnsupportedRouteError extends ClawSwapError {
+  constructor(message = 'This route is not supported', suggestion?: string) {
+    super('UNSUPPORTED_ROUTE', message, suggestion);
+    this.name = 'UnsupportedRouteError';
+    Object.setPrototypeOf(this, UnsupportedRouteError.prototype);
+  }
+}
+
+export class QuoteFailedError extends ClawSwapError {
+  constructor(message = 'Failed to get quote', suggestion?: string) {
+    super('QUOTE_FAILED', message, suggestion);
+    this.name = 'QuoteFailedError';
+    Object.setPrototypeOf(this, QuoteFailedError.prototype);
+  }
+}
+
 export class InsufficientLiquidityError extends ClawSwapError {
-  constructor(message = 'Insufficient liquidity for this swap', details?: Record<string, unknown>) {
-    super('INSUFFICIENT_LIQUIDITY', message, details);
+  constructor(message = 'Insufficient liquidity for this swap', suggestion?: string) {
+    super('INSUFFICIENT_LIQUIDITY', message, suggestion);
     this.name = 'InsufficientLiquidityError';
     Object.setPrototypeOf(this, InsufficientLiquidityError.prototype);
   }
 }
 
-/**
- * Thrown when the swap amount is below minimum
- */
 export class AmountTooLowError extends ClawSwapError {
-  constructor(message = 'Amount is below minimum', details?: Record<string, unknown>) {
-    super('AMOUNT_TOO_LOW', message, details);
+  constructor(message = 'Amount is below minimum', suggestion?: string) {
+    super('AMOUNT_TOO_LOW', message, suggestion);
     this.name = 'AmountTooLowError';
     Object.setPrototypeOf(this, AmountTooLowError.prototype);
   }
 }
 
-/**
- * Thrown when the swap amount exceeds maximum
- */
 export class AmountTooHighError extends ClawSwapError {
-  constructor(message = 'Amount exceeds maximum', details?: Record<string, unknown>) {
-    super('AMOUNT_TOO_HIGH', message, details);
+  constructor(message = 'Amount exceeds maximum', suggestion?: string) {
+    super('AMOUNT_TOO_HIGH', message, suggestion);
     this.name = 'AmountTooHighError';
     Object.setPrototypeOf(this, AmountTooHighError.prototype);
   }
 }
 
-/**
- * Thrown when the token pair is not supported
- */
-export class UnsupportedPairError extends ClawSwapError {
-  constructor(message = 'This token pair is not supported', details?: Record<string, unknown>) {
-    super('UNSUPPORTED_PAIR', message, details);
-    this.name = 'UnsupportedPairError';
-    Object.setPrototypeOf(this, UnsupportedPairError.prototype);
+export class GasExceedsThresholdError extends ClawSwapError {
+  constructor(message = 'Gas cost exceeds safety threshold', suggestion?: string) {
+    super('GAS_EXCEEDS_THRESHOLD', message, suggestion);
+    this.name = 'GasExceedsThresholdError';
+    Object.setPrototypeOf(this, GasExceedsThresholdError.prototype);
   }
 }
 
-/**
- * Thrown when a quote has expired (30s TTL)
- */
-export class QuoteExpiredError extends ClawSwapError {
-  constructor(
-    message = 'Quote has expired, please request a new quote',
-    details?: Record<string, unknown>
-  ) {
-    super('QUOTE_EXPIRED', message, details);
-    this.name = 'QuoteExpiredError';
-    Object.setPrototypeOf(this, QuoteExpiredError.prototype);
+export class RelayUnavailableError extends ClawSwapError {
+  constructor(message = 'Relay bridge service unavailable', suggestion?: string) {
+    super('RELAY_UNAVAILABLE', message, suggestion);
+    this.name = 'RelayUnavailableError';
+    Object.setPrototypeOf(this, RelayUnavailableError.prototype);
   }
 }
 
-/**
- * Thrown when payment is required but not provided
- */
 export class PaymentRequiredError extends ClawSwapError {
-  constructor(message = 'Payment required to execute swap', details?: Record<string, unknown>) {
-    super('PAYMENT_REQUIRED', message, details);
+  constructor(message = 'Payment required to execute swap', suggestion?: string) {
+    super('PAYMENT_REQUIRED', message, suggestion);
     this.name = 'PaymentRequiredError';
     Object.setPrototypeOf(this, PaymentRequiredError.prototype);
   }
 }
 
-/**
- * Thrown when payment verification fails
- */
-export class PaymentVerificationError extends ClawSwapError {
-  constructor(message = 'Payment verification failed', details?: Record<string, unknown>) {
-    super('PAYMENT_VERIFICATION_FAILED', message, details);
-    this.name = 'PaymentVerificationError';
-    Object.setPrototypeOf(this, PaymentVerificationError.prototype);
+export class RateLimitExceededError extends ClawSwapError {
+  constructor(message = 'Rate limit exceeded', suggestion?: string) {
+    super('RATE_LIMIT_EXCEEDED', message, suggestion);
+    this.name = 'RateLimitExceededError';
+    Object.setPrototypeOf(this, RateLimitExceededError.prototype);
   }
 }
 
-/**
- * Thrown when network request fails
- */
 export class NetworkError extends ClawSwapError {
-  constructor(message = 'Network request failed', details?: Record<string, unknown>) {
-    super('NETWORK_ERROR', message, details);
+  constructor(message = 'Network request failed', suggestion?: string) {
+    super('NETWORK_ERROR', message, suggestion);
     this.name = 'NetworkError';
     Object.setPrototypeOf(this, NetworkError.prototype);
   }
 }
 
-/**
- * Thrown when request times out
- */
 export class TimeoutError extends ClawSwapError {
-  constructor(message = 'Request timed out', details?: Record<string, unknown>) {
-    super('TIMEOUT', message, details);
+  constructor(message = 'Request timed out', suggestion?: string) {
+    super('TIMEOUT', message, suggestion);
     this.name = 'TimeoutError';
     Object.setPrototypeOf(this, TimeoutError.prototype);
   }
 }
 
 /**
- * Maps HTTP error responses to typed error classes
+ * Maps HTTP error responses to typed error classes.
+ * Parses the v2 error envelope: { error: { code, message, suggestion } }
  */
-export function mapApiError(statusCode: number, errorData: Partial<ApiError>): ClawSwapError {
-  const { code, message, details } = errorData;
+export function mapApiError(statusCode: number, errorData: unknown): ClawSwapError {
+  const envelope = (errorData != null && typeof errorData === 'object' ? errorData : {}) as {
+    error?: { code?: string; message?: string; suggestion?: string };
+  };
+  const code = envelope?.error?.code;
+  const message = envelope?.error?.message;
+  const suggestion = envelope?.error?.suggestion;
 
-  // If we have a specific error code, use it
   if (code) {
     switch (code) {
+      case 'MISSING_FIELD':
+        return new MissingFieldError(message, suggestion);
+      case 'UNSUPPORTED_CHAIN':
+        return new UnsupportedChainError(message, suggestion);
+      case 'UNSUPPORTED_ROUTE':
+        return new UnsupportedRouteError(message, suggestion);
+      case 'QUOTE_FAILED':
+        return new QuoteFailedError(message, suggestion);
       case 'INSUFFICIENT_LIQUIDITY':
-        return new InsufficientLiquidityError(message, details);
+        return new InsufficientLiquidityError(message, suggestion);
       case 'AMOUNT_TOO_LOW':
-        return new AmountTooLowError(message, details);
+        return new AmountTooLowError(message, suggestion);
       case 'AMOUNT_TOO_HIGH':
-        return new AmountTooHighError(message, details);
-      case 'UNSUPPORTED_PAIR':
-        return new UnsupportedPairError(message, details);
-      case 'QUOTE_EXPIRED':
-        return new QuoteExpiredError(message, details);
+        return new AmountTooHighError(message, suggestion);
+      case 'GAS_EXCEEDS_THRESHOLD':
+        return new GasExceedsThresholdError(message, suggestion);
+      case 'RELAY_UNAVAILABLE':
+        return new RelayUnavailableError(message, suggestion);
       case 'PAYMENT_REQUIRED':
-        return new PaymentRequiredError(message, details);
-      case 'PAYMENT_VERIFICATION_FAILED':
-        return new PaymentVerificationError(message, details);
+        return new PaymentRequiredError(message, suggestion);
+      case 'RATE_LIMIT_EXCEEDED':
+        return new RateLimitExceededError(message, suggestion);
       case 'NETWORK_ERROR':
-        return new NetworkError(message, details);
+        return new NetworkError(message, suggestion);
       case 'TIMEOUT':
-        return new TimeoutError(message, details);
+        return new TimeoutError(message, suggestion);
       default:
-        return new ClawSwapError(code, message || 'An error occurred', details);
+        return new ClawSwapError(code as ErrorCode, message || 'An error occurred', suggestion);
     }
   }
 
-  // Fallback to HTTP status code mapping
+  // Fallback: HTTP status code mapping
   if (statusCode === 402) {
-    return new PaymentRequiredError(message || 'Payment required', details);
+    return new PaymentRequiredError(message || 'Payment required', suggestion);
   }
-
+  if (statusCode === 404) {
+    return new ClawSwapError('UNSUPPORTED_ROUTE' as ErrorCode, message || 'Resource not found', suggestion);
+  }
+  if (statusCode === 429) {
+    return new RateLimitExceededError(message || 'Rate limit exceeded', suggestion);
+  }
   if (statusCode >= 500) {
-    return new ClawSwapError(
-      'SERVER_CONFIGURATION_ERROR',
-      message || 'Server error occurred',
-      details
-    );
+    return new RelayUnavailableError(message || 'Server error occurred', suggestion);
   }
 
-  return new ClawSwapError('UNKNOWN_ERROR', message || 'Unknown error occurred', details);
+  return new ClawSwapError('NETWORK_ERROR' as ErrorCode, message || 'Unknown error occurred', suggestion);
 }

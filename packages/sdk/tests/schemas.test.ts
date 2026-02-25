@@ -53,17 +53,27 @@ describe('Validation Schemas', () => {
       expect(() => amountSchema.parse('abc')).toThrow('Amount must be a positive number');
       expect(() => amountSchema.parse('')).toThrow('Amount must be a positive number');
     });
+
+    it('should reject scientific notation', () => {
+      expect(() => amountSchema.parse('1e308')).toThrow('Amount must be a positive number');
+      expect(() => amountSchema.parse('1E10')).toThrow('Amount must be a positive number');
+      expect(() => amountSchema.parse('1e-5')).toThrow('Amount must be a positive number');
+    });
+
+    it('should reject Infinity', () => {
+      expect(() => amountSchema.parse('Infinity')).toThrow('Amount must be a positive number');
+    });
   });
 
   describe('quoteRequestSchema', () => {
     const validQuoteRequest = {
-      sourceChainId: 'solana',
-      sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      destinationChainId: 'base',
-      destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      sourceChain: 'solana',
+      sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      destinationChain: 'base',
+      destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       amount: '1000000',
-      senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-      recipientAddress: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
+      userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+      recipient: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
     };
 
     it('should validate complete quote request', () => {
@@ -71,23 +81,23 @@ describe('Validation Schemas', () => {
       expect(result).toEqual(validQuoteRequest);
     });
 
-    it('should reject missing sourceChainId', () => {
-      const { sourceChainId, ...incomplete } = validQuoteRequest;
+    it('should reject missing sourceChain', () => {
+      const { sourceChain, ...incomplete } = validQuoteRequest;
       expect(() => quoteRequestSchema.parse(incomplete)).toThrow();
     });
 
-    it('should reject missing sourceTokenAddress', () => {
-      const { sourceTokenAddress, ...incomplete } = validQuoteRequest;
+    it('should reject missing sourceToken', () => {
+      const { sourceToken, ...incomplete } = validQuoteRequest;
       expect(() => quoteRequestSchema.parse(incomplete)).toThrow();
     });
 
-    it('should reject missing destinationChainId', () => {
-      const { destinationChainId, ...incomplete } = validQuoteRequest;
+    it('should reject missing destinationChain', () => {
+      const { destinationChain, ...incomplete } = validQuoteRequest;
       expect(() => quoteRequestSchema.parse(incomplete)).toThrow();
     });
 
-    it('should reject missing destinationTokenAddress', () => {
-      const { destinationTokenAddress, ...incomplete } = validQuoteRequest;
+    it('should reject missing destinationToken', () => {
+      const { destinationToken, ...incomplete } = validQuoteRequest;
       expect(() => quoteRequestSchema.parse(incomplete)).toThrow();
     });
 
@@ -100,23 +110,23 @@ describe('Validation Schemas', () => {
       expect(() =>
         quoteRequestSchema.parse({
           ...validQuoteRequest,
-          sourceChainId: '',
+          sourceChain: '',
         })
       ).toThrow();
     });
   });
 
   describe('statusRequestSchema', () => {
-    it('should validate order ID', () => {
-      const result = statusRequestSchema.parse({ orderId: 'order-123' });
-      expect(result.orderId).toBe('order-123');
+    it('should validate request ID', () => {
+      const result = statusRequestSchema.parse({ requestId: 'req-123' });
+      expect(result.requestId).toBe('req-123');
     });
 
-    it('should reject empty order ID', () => {
-      expect(() => statusRequestSchema.parse({ orderId: '' })).toThrow();
+    it('should reject empty request ID', () => {
+      expect(() => statusRequestSchema.parse({ requestId: '' })).toThrow();
     });
 
-    it('should reject missing order ID', () => {
+    it('should reject missing request ID', () => {
       expect(() => statusRequestSchema.parse({})).toThrow();
     });
   });

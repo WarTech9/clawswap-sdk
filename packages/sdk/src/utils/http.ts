@@ -1,5 +1,5 @@
-import type { ClawSwapConfig, ApiError } from '../types';
-import { NetworkError, mapApiError } from '../errors';
+import type { ClawSwapConfig } from '../types';
+import { ClawSwapError, NetworkError, TimeoutError, mapApiError } from '../errors';
 
 /**
  * HTTP client with timeout and error handling
@@ -46,18 +46,15 @@ export class HttpClient {
       clearTimeout(timeoutId);
 
       // Re-throw ClawSwapError instances without wrapping
-      if (error && typeof error === 'object' && 'code' in error) {
+      if (error instanceof ClawSwapError) {
         throw error;
       }
 
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new NetworkError('Request timed out', {
-            url,
-            timeoutMs: this.timeout,
-          });
+          throw new TimeoutError('Request timed out', 'Increase the timeout option');
         }
-        throw new NetworkError(error.message, { url, originalError: error });
+        throw new NetworkError(error.message);
       }
 
       throw error;
@@ -76,14 +73,16 @@ export class HttpClient {
   }
 
   private async handleErrorResponse(response: Response): Promise<never> {
-    let errorData: Partial<ApiError>;
+    let errorData: unknown;
 
     try {
-      errorData = (await response.json()) as Partial<ApiError>;
+      errorData = await response.json();
     } catch {
       errorData = {
-        code: 'UNKNOWN_ERROR',
-        message: response.statusText || 'Unknown error occurred',
+        error: {
+          code: 'NETWORK_ERROR',
+          message: response.statusText || 'Unknown error occurred',
+        },
       };
     }
 

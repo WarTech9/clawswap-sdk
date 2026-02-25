@@ -41,31 +41,27 @@ export const quoteCommand = new Command('quote')
 
       logger.info('Fetching quote...');
       const quote = await client.getQuote({
-        sourceChainId: source.chain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: dest.chain,
-        destinationTokenAddress: destToken,
+        sourceChain: source.chain,
+        sourceToken: sourceToken,
+        destinationChain: dest.chain,
+        destinationToken: destToken,
         amount: options.amount,
-        senderAddress: options.sender,
-        recipientAddress: options.recipient,
+        userWallet: options.sender,
+        recipient: options.recipient,
         slippageTolerance: slippage,
       });
 
       logger.success('Quote received:');
       logger.table({
-        'Quote ID': quote.quoteId,
-        'Source Amount': quote.sourceAmount,
-        'Destination Amount': quote.destinationAmount,
-        'Bridge Fee (USD)': `$${quote.fees.bridgeFeeUsd}`,
-        'x402 Fee (USD)': `$${quote.fees.x402FeeUsd}`,
-        'Gas Reimbursement (est.)': `$${quote.fees.gasReimbursementEstimatedUsd}`,
-        'Total Fee (USD)': `$${quote.fees.totalEstimatedFeeUsd}`,
-        'Estimated Time': `${quote.estimatedTimeSeconds}s`,
-        'Expires In': `${quote.expiresIn}s`,
-        'Expires At': new Date(quote.expiresAt).toISOString(),
+        'Estimated Output': quote.estimatedOutputFormatted,
+        'Estimated Time': `${quote.estimatedTime}s`,
+        'ClawSwap Fee': quote.fees.clawswap,
+        'Relay Fee': quote.fees.relay,
+        'Gas Fee': quote.fees.gas,
+        'Route': `${quote.route.sourceChain} (${quote.route.sourceToken.symbol}) → ${quote.route.destinationChain} (${quote.route.destinationToken.symbol})`,
+        'Supported': quote.supported ? 'Yes' : 'No',
       });
 
-      logger.warn('Note: This quote expires in 30 seconds');
       console.log();
       console.log('To execute this swap, run:');
       console.log(`  pnpm dev -- swap --from ${options.from} --to ${options.to} --amount ${options.amount} --destination <address>`);

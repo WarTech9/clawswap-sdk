@@ -13,17 +13,17 @@ export async function poll<T>(
   const startTime = Date.now();
 
   while (true) {
+    if (Date.now() - startTime > timeout) {
+      throw new TimeoutError(
+        'Polling timed out',
+        'Increase timeout or check network connectivity'
+      );
+    }
+
     const result = await fn();
 
     if (!shouldContinue(result)) {
       return result;
-    }
-
-    if (Date.now() - startTime > timeout) {
-      throw new TimeoutError('Polling timed out', {
-        timeoutMs: timeout,
-        elapsedMs: Date.now() - startTime,
-      });
     }
 
     await sleep(interval);
@@ -39,8 +39,8 @@ export function sleep(ms: number): Promise<void> {
 
 /**
  * Check if swap is in terminal state
- * Terminal statuses from Relay API: fulfilled, completed, failed, cancelled
+ * Terminal statuses: completed, failed
  */
 export function isTerminalStatus(status: StatusResponse['status']): boolean {
-  return ['fulfilled', 'completed', 'failed', 'cancelled'].includes(status);
+  return ['completed', 'failed'].includes(status);
 }

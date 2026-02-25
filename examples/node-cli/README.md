@@ -41,8 +41,6 @@ pnpm dev -- quote \
   --recipient <evm-address>
 ```
 
-Quotes expire in 30 seconds.
-
 ### Swap
 
 Mock mode (no wallet):
@@ -69,8 +67,8 @@ pnpm dev -- swap \
 ### Status
 
 ```bash
-pnpm dev -- status <swapId>
-pnpm dev -- status <swapId> --watch
+pnpm dev -- status <requestId>
+pnpm dev -- status <requestId> --watch
 ```
 
 ## Token Shortcuts
