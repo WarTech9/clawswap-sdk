@@ -63,8 +63,7 @@ describe('Integration Tests', () => {
   });
 
   describe('Quote Endpoint (Free)', () => {
-    it('should get a quote for SOL -> USDC on Base', async () => {
-      const chains = await client.getSupportedChains();
+    it('should get a quote for USDC Solana -> USDC Base', async () => {
       const solanaTokens = await client.getSupportedTokens('solana');
       const baseTokens = await client.getSupportedTokens('base');
 
@@ -78,39 +77,34 @@ describe('Integration Tests', () => {
       }
 
       const quote = await client.getQuote({
-        sourceChainId: 'solana',
-        sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'base',
-        destinationTokenAddress: baseUSDC.address,
+        sourceChain: 'solana',
+        sourceToken: solanaUSDC.address,
+        destinationChain: 'base',
+        destinationToken: baseUSDC.address,
         amount: '1000000', // 1 USDC (6 decimals)
-        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
-      // Verify quote structure
-      expect(quote).toHaveProperty('id');
-      expect(quote).toHaveProperty('sourceAmount');
-      expect(quote).toHaveProperty('destinationAmount');
+      // Verify v2 quote structure
+      expect(quote).toHaveProperty('estimatedOutput');
+      expect(quote).toHaveProperty('estimatedOutputFormatted');
+      expect(quote).toHaveProperty('estimatedTime');
       expect(quote).toHaveProperty('fees');
-      expect(quote.fees).toHaveProperty('totalFeeUsd');
-      expect(quote).toHaveProperty('estimatedTimeSeconds');
-      expect(quote).toHaveProperty('expiresAt');
-      expect(quote).toHaveProperty('expiresIn');
-      expect(quote).toHaveProperty('transactionData');
+      expect(quote.fees).toHaveProperty('clawswap');
+      expect(quote.fees).toHaveProperty('relay');
+      expect(quote.fees).toHaveProperty('gas');
+      expect(quote).toHaveProperty('route');
+      expect(quote).toHaveProperty('supported');
 
-      // Verify values
-      expect(quote.sourceAmount).toBe('1000000');
-      expect(quote.expiresIn).toBeLessThanOrEqual(30);
-      expect(quote.expiresIn).toBeGreaterThan(0);
-
-      // Verify destination amount is reasonable (accounting for fees)
-      const destAmount = parseFloat(quote.destinationAmount);
-      expect(destAmount).toBeGreaterThan(900000); // At least 0.9 USDC
-      expect(destAmount).toBeLessThanOrEqual(1000000); // At most 1 USDC
+      // Verify route structure
+      expect(quote.route).toHaveProperty('sourceChain');
+      expect(quote.route).toHaveProperty('sourceToken');
+      expect(quote.route).toHaveProperty('destinationChain');
+      expect(quote.route).toHaveProperty('destinationToken');
     });
 
     it('should include fee breakdown in quote', async () => {
-      const chains = await client.getSupportedChains();
       const solanaTokens = await client.getSupportedTokens('solana');
       const baseTokens = await client.getSupportedTokens('base');
 
@@ -120,25 +114,20 @@ describe('Integration Tests', () => {
       if (!solanaUSDC || !baseUSDC) return;
 
       const quote = await client.getQuote({
-        sourceChainId: 'solana',
-        sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'base',
-        destinationTokenAddress: baseUSDC.address,
+        sourceChain: 'solana',
+        sourceToken: solanaUSDC.address,
+        destinationChain: 'base',
+        destinationToken: baseUSDC.address,
         amount: '1000000',
-        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
-      // Verify fee structure (v2 API format)
+      // Verify v2 fee structure
       expect(quote).toHaveProperty('fees');
-      expect(quote.fees).toHaveProperty('totalFeeUsd');
-      expect(quote.fees).toHaveProperty('relayerFee');
-      expect(quote.fees).toHaveProperty('gasSolLamports');
-
-      // Verify fee values are reasonable
-      const totalFee = parseFloat(quote.fees.totalFeeUsd);
-      expect(totalFee).toBeGreaterThan(0);
-      expect(totalFee).toBeLessThan(100); // Sanity check
+      expect(quote.fees).toHaveProperty('clawswap');
+      expect(quote.fees).toHaveProperty('relay');
+      expect(quote.fees).toHaveProperty('gas');
     });
   });
 
@@ -154,32 +143,33 @@ describe('Integration Tests', () => {
       const client = new ClawSwapClient({ fetch: fetchWithPayment });
 
       const executeResponse = await client.executeSwap({
-        sourceChainId: 'solana',
-        sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        destinationChainId: 'base',
-        destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        sourceChain: 'solana',
+        sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        destinationChain: 'base',
+        destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         amount: '1000000',
-        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
 
+      expect(executeResponse).toHaveProperty('requestId');
       expect(executeResponse).toHaveProperty('transaction');
-      expect(executeResponse).toHaveProperty('metadata');
-      expect(executeResponse.metadata).toHaveProperty('orderId');
-      expect(executeResponse.metadata).toHaveProperty('paymentAmount');
-      expect(executeResponse.metadata).toHaveProperty('gasLamports');
+      expect(executeResponse).toHaveProperty('sourceChain');
+      expect(executeResponse).toHaveProperty('estimatedOutput');
+      expect(executeResponse).toHaveProperty('fees');
+      expect(executeResponse).toHaveProperty('instructions');
       */
     });
 
     it.skip('should poll swap status until completion', async () => {
       // This test requires a real swap ID from previous test
       /*
-      const result = await client.waitForSettlement('swap-id', {
+      const result = await client.waitForSettlement('request-id', {
         timeout: 300000, // 5 minutes
         interval: 5000,  // Poll every 5 seconds
       });
 
-      expect(['completed', 'failed', 'expired']).toContain(result.status);
+      expect(['completed', 'failed']).toContain(result.status);
       */
     });
   });
@@ -192,13 +182,13 @@ describe('Integration Tests', () => {
     it('should handle invalid quote parameters', async () => {
       await expect(
         client.getQuote({
-          sourceChainId: 'solana',
-          sourceTokenAddress: 'invalid',
-          destinationChainId: 'base',
-          destinationTokenAddress: 'invalid',
+          sourceChain: 'solana',
+          sourceToken: 'invalid',
+          destinationChain: 'base',
+          destinationToken: 'invalid',
           amount: '1000000',
-          senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-          recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+          userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+          recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
         })
       ).rejects.toThrow();
     });
@@ -222,7 +212,6 @@ describe('Integration Tests', () => {
     });
 
     it('should get quote quickly (< 3s)', async () => {
-      const chains = await client.getSupportedChains();
       const solanaTokens = await client.getSupportedTokens('solana');
       const baseTokens = await client.getSupportedTokens('base');
 
@@ -233,13 +222,13 @@ describe('Integration Tests', () => {
 
       const start = Date.now();
       await client.getQuote({
-        sourceChainId: 'solana',
-        sourceTokenAddress: solanaUSDC.address,
-        destinationChainId: 'base',
-        destinationTokenAddress: baseUSDC.address,
+        sourceChain: 'solana',
+        sourceToken: solanaUSDC.address,
+        destinationChain: 'base',
+        destinationToken: baseUSDC.address,
         amount: '1000000',
-        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-        recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
       });
       const elapsed = Date.now() - start;
 

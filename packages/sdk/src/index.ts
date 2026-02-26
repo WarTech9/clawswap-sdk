@@ -8,36 +8,37 @@ export type {
   QuoteResponse,
   ExecuteSwapResponse,
   EvmTransaction,
-  SwapResponse, // Alias for ExecuteSwapResponse (backwards compatibility)
   StatusResponse,
   SwapFeeBreakdown,
-  SwapFeeResponse, // Deprecated alias for SwapFeeBreakdown
   WaitForSettlementOptions,
   Chain,
   Token,
   TokenPair,
   SwapStatus,
-  SwapTransaction,
   ErrorCode,
   ApiError,
 } from './types';
 
-// Type guards and helpers
-export { isEvmTransaction, isEvmSource, isSolanaSource } from './types';
+// Type guards
+export { isEvmSource, isSolanaSource } from './types';
 
 // Errors
 export {
   ClawSwapError,
+  MissingFieldError,
+  UnsupportedChainError,
+  UnsupportedRouteError,
+  QuoteFailedError,
   InsufficientLiquidityError,
   AmountTooLowError,
   AmountTooHighError,
-  UnsupportedPairError,
-  QuoteExpiredError,
+  GasExceedsThresholdError,
+  RelayUnavailableError,
   PaymentRequiredError,
-  PaymentVerificationError,
+  RateLimitExceededError,
   NetworkError,
   TimeoutError,
 } from './errors';
 
-// Schemas (for external validation if needed)
+// Schemas (for MCP tool input schemas, GOAT plugin validation)
 export { quoteRequestSchema, statusRequestSchema } from './schemas';

@@ -125,35 +125,31 @@ async function testQuoteForPair(
   section(`Section 2 — Quote: ${pairLabel} (free, no payment)`);
 
   const quote: QuoteResponse = await client.getQuote({
-    sourceChainId: 'solana',
-    sourceTokenAddress,
-    destinationChainId: 'base',
-    destinationTokenAddress,
+    sourceChain: 'solana',
+    sourceToken: sourceTokenAddress,
+    destinationChain: 'base',
+    destinationToken: destinationTokenAddress,
     amount: SWAP_AMOUNT,
-    senderAddress: TEST_SENDER,
-    recipientAddress: RECIPIENT_ADDRESS,
+    userWallet: TEST_SENDER,
+    recipient: RECIPIENT_ADDRESS,
   });
 
-  assert(typeof quote.quoteId === 'string' && quote.quoteId.length > 0, 'Quote has quoteId');
-  assert(typeof quote.sourceAmount === 'string', 'Quote has sourceAmount');
-  assert(typeof quote.destinationAmount === 'string', 'Quote has destinationAmount');
+  assert(typeof quote.estimatedOutput === 'string', 'Quote has estimatedOutput');
+  assert(typeof quote.estimatedOutputFormatted === 'string', 'Quote has estimatedOutputFormatted');
+  assert(typeof quote.estimatedTime === 'number', 'Quote has estimatedTime');
   assert(typeof quote.fees === 'object', 'Quote has fees object');
-  assert(typeof quote.fees.totalEstimatedFeeUsd === 'number', 'fees.totalEstimatedFeeUsd is a number');
-  assert(typeof quote.fees.bridgeFeeUsd === 'number', 'fees.bridgeFeeUsd is a number');
-  assert(typeof quote.fees.x402FeeUsd === 'number', 'fees.x402FeeUsd is a number');
-  assert(typeof quote.fees.gasReimbursementEstimatedUsd === 'number', 'fees.gasReimbursementEstimatedUsd is a number');
-  assert(typeof quote.estimatedTimeSeconds === 'number', 'Quote has estimatedTimeSeconds');
-  assert(typeof quote.expiresIn === 'number', 'Quote has expiresIn');
-  assert(typeof quote.expiresAt === 'string', 'Quote has expiresAt');
+  assert(typeof quote.fees.clawswap === 'string', 'fees.clawswap is a string');
+  assert(typeof quote.fees.relay === 'string', 'fees.relay is a string');
+  assert(typeof quote.fees.gas === 'string', 'fees.gas is a string');
+  assert(typeof quote.route === 'object', 'Quote has route object');
+  assert(typeof quote.supported === 'boolean', 'Quote has supported flag');
 
-  const destAmount = parseFloat(quote.destinationAmount);
-  assert(destAmount > Number(SWAP_AMOUNT) * 0.9, `Destination amount > 90% of input (got ${destAmount}, input ${SWAP_AMOUNT})`);
-  assert(quote.fees.totalEstimatedFeeUsd > 0, `Total fee > 0 (got ${quote.fees.totalEstimatedFeeUsd})`);
+  const destAmount = parseFloat(quote.estimatedOutput);
+  assert(destAmount > Number(SWAP_AMOUNT) * 0.9, `Estimated output > 90% of input (got ${destAmount}, input ${SWAP_AMOUNT})`);
 
-  console.log(`\n  Quote ID: ${quote.quoteId}`);
-  console.log(`  Destination amount: ${destAmount / 1e6}`);
-  console.log(`  Total Fee: $${quote.fees.totalEstimatedFeeUsd}`);
-  console.log(`  Expires in: ${quote.expiresIn}s`);
+  console.log(`\n  Estimated output: ${quote.estimatedOutputFormatted}`);
+  console.log(`  Fees — ClawSwap: ${quote.fees.clawswap} | Relay: ${quote.fees.relay} | Gas: ${quote.fees.gas}`);
+  console.log(`  Estimated time: ${quote.estimatedTime}s`);
 
   return quote;
 }
@@ -205,54 +201,49 @@ async function testExecute(): Promise<ExecuteSwapResponse | null> {
   console.log(`  Pair: ${execPairLabel}`);
 
   const response: ExecuteSwapResponse = await client.executeSwap({
-    sourceChainId: 'solana',
-    sourceTokenAddress: EXEC_SOURCE_TOKEN,
-    destinationChainId: 'base',
-    destinationTokenAddress: EXEC_DEST_TOKEN,
+    sourceChain: 'solana',
+    sourceToken: EXEC_SOURCE_TOKEN,
+    destinationChain: 'base',
+    destinationToken: EXEC_DEST_TOKEN,
     amount: SWAP_AMOUNT,
-    senderAddress,
-    recipientAddress: RECIPIENT_ADDRESS,
+    userWallet: senderAddress,
+    recipient: RECIPIENT_ADDRESS,
   });
 
+  assert(typeof response.requestId === 'string', 'executeSwap() returns requestId (string)');
   assert(typeof response.transaction === 'string', 'executeSwap() returns transaction (string)');
-  assert(response.transaction.length > 0, 'Transaction is non-empty');
-  assert(typeof response.orderId === 'string', 'executeSwap() returns orderId (string)');
-  assert(typeof response.isToken2022 === 'boolean', 'executeSwap() returns isToken2022 (boolean)');
-  assert(typeof response.accounting === 'object', 'executeSwap() returns accounting object');
-  assert(typeof response.accounting.x402Fee.amountUsd === 'number', 'accounting.x402Fee.amountUsd is a number');
-  if (response.accounting.gasReimbursement) {
-    assert(typeof response.accounting.gasReimbursement.amountRaw === 'string', 'accounting.gasReimbursement.amountRaw is a string');
-    assert(typeof response.accounting.gasReimbursement.amountFormatted === 'string', 'accounting.gasReimbursement.amountFormatted is a string');
-  }
-  assert(typeof response.accounting.bridgeFee.estimatedUsd === 'number', 'accounting.bridgeFee.estimatedUsd is a number');
+  assert(response.transaction!.length > 0, 'Transaction is non-empty');
+  assert(typeof response.sourceChain === 'string', 'executeSwap() returns sourceChain');
+  assert(typeof response.estimatedOutput === 'string', 'executeSwap() returns estimatedOutput');
+  assert(typeof response.estimatedTime === 'number', 'executeSwap() returns estimatedTime');
+  assert(typeof response.fees === 'object', 'executeSwap() returns fees object');
+  assert(typeof response.fees.clawswap === 'string', 'fees.clawswap is a string');
+  assert(typeof response.instructions === 'string', 'executeSwap() returns instructions');
 
-  console.log(`\n  Order ID: ${response.orderId}`);
-  console.log(`  x402 Fee: $${response.accounting.x402Fee.amountUsd}`);
-  console.log(`  Gas Reimbursement: ${response.accounting.gasReimbursement?.amountFormatted ?? 'N/A'}`);
+  console.log(`\n  Request ID: ${response.requestId}`);
+  console.log(`  Estimated output: ${response.estimatedOutput}`);
+  console.log(`  Fees — ClawSwap: ${response.fees.clawswap} | Relay: ${response.fees.relay} | Gas: ${response.fees.gas}`);
 
   return response;
 }
 
 // ─── Section 4: Status ───────────────────────────────────────────────────────
 
-async function testStatus(client: ClawSwapClient, orderId: string): Promise<void> {
+async function testStatus(client: ClawSwapClient, requestId: string): Promise<void> {
   section('Section 4 — Status via SDK (free)');
 
-  const status: StatusResponse = await client.getStatus(orderId);
+  const status: StatusResponse = await client.getStatus(requestId);
 
-  const statusRecord = status as unknown as Record<string, unknown>;
-  const id = statusRecord.swapId ?? statusRecord.orderId;
-  assert(typeof id === 'string', 'getStatus() returns swapId or orderId');
+  assert(typeof status.requestId === 'string', 'Status has requestId');
   assert(typeof status.status === 'string', 'Status has status field');
-  assert(typeof status.sourceChainId === 'string', 'Status has sourceChainId');
-  assert(typeof status.destinationChainId === 'string', 'Status has destinationChainId');
-  assert(typeof status.sourceAmount === 'string', 'Status has sourceAmount');
-  assert(typeof status.destinationAmount === 'string', 'Status has destinationAmount');
+  assert(typeof status.sourceChain === 'string', 'Status has sourceChain');
+  assert(typeof status.destinationChain === 'string', 'Status has destinationChain');
+  assert(typeof status.outputAmount === 'string', 'Status has outputAmount');
 
-  const validStatuses = ['pending', 'created', 'bridging', 'settling', 'fulfilled', 'completed', 'failed', 'cancelled'];
+  const validStatuses = ['pending', 'submitted', 'filling', 'completed', 'failed'];
   assert(validStatuses.includes(status.status), `Status "${status.status}" is a known value`);
 
-  console.log(`\n  Order: ${id}`);
+  console.log(`\n  Request: ${status.requestId}`);
   console.log(`  Status: ${status.status}`);
 }
 
@@ -261,7 +252,7 @@ async function testStatus(client: ClawSwapClient, orderId: string): Promise<void
 async function testSettlement(
   client: ClawSwapClient,
   transaction: string,
-  orderId: string
+  requestId: string
 ): Promise<void> {
   section('Section 5 — Sign, Submit & waitForSettlement');
 
@@ -303,8 +294,8 @@ async function testSettlement(
   assert(!confirmation.value.err, 'Transaction confirmed on Solana');
 
   // Use SDK to wait for settlement
-  console.log(`\n  Calling client.waitForSettlement(${orderId})...`);
-  const result = await client.waitForSettlement(orderId, {
+  console.log(`\n  Calling client.waitForSettlement(${requestId})...`);
+  const result = await client.waitForSettlement(requestId, {
     timeout: 300_000,
     interval: 3000,
     onStatusUpdate: (s) => {
@@ -312,11 +303,11 @@ async function testSettlement(
     },
   });
 
-  const success = result.status === 'fulfilled' || result.status === 'completed';
+  const success = result.status === 'completed';
   assert(success, `Swap reached success state (got: ${result.status})`);
 
   if (success) {
-    console.log(`\n  ✨ Swap completed: ${result.destinationAmount} tokens delivered`);
+    console.log(`\n  ✨ Swap completed: ${result.outputAmount} tokens delivered`);
   }
 }
 
@@ -352,8 +343,8 @@ async function main(): Promise<void> {
     const executeResult = await testExecute();
 
     if (executeResult) {
-      await testStatus(freeClient, executeResult.orderId);
-      await testSettlement(freeClient, executeResult.transaction, executeResult.orderId);
+      await testStatus(freeClient, executeResult.requestId);
+      await testSettlement(freeClient, executeResult.transaction!, executeResult.requestId);
     }
   } catch (error) {
     console.error('\n  💥 Unexpected error:', error instanceof Error ? error.message : error);

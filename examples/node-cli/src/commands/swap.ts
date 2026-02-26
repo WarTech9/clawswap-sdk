@@ -132,22 +132,23 @@ export const swapCommand = new Command('swap')
       console.log();
       logger.info('Step 1/3: Getting quote...');
       const quote = await client.getQuote({
-        sourceChainId: source.chain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: dest.chain,
-        destinationTokenAddress: destToken,
+        sourceChain: source.chain,
+        sourceToken: sourceToken,
+        destinationChain: dest.chain,
+        destinationToken: destToken,
         amount: options.amount,
-        senderAddress: options.sender || 'default-sender',
-        recipientAddress: options.destination,
+        userWallet: options.sender || 'default-sender',
+        recipient: options.destination,
         slippageTolerance: slippage,
       });
 
-      logger.success(`Quote received: ${quote.destinationAmount} tokens`);
-      logger.warn(`Quote expires in ${quote.expiresIn} seconds`);
+      logger.success(`Quote received: ${quote.estimatedOutputFormatted}`);
       logger.table({
-        'Quote ID': quote.quoteId,
-        'Total Fee': `$${quote.fees.totalEstimatedFeeUsd}`,
-        'Estimated Time': `${quote.estimatedTimeSeconds}s`,
+        'Estimated Output': quote.estimatedOutputFormatted,
+        'ClawSwap Fee': quote.fees.clawswap,
+        'Relay Fee': quote.fees.relay,
+        'Gas Fee': quote.fees.gas,
+        'Estimated Time': `${quote.estimatedTime}s`,
       });
 
       // STEP 2: Execute swap
@@ -157,7 +158,7 @@ export const swapCommand = new Command('swap')
       if (options.mock) {
         logger.warn('[MOCK MODE] Skipping actual swap execution');
         logger.info('In real mode, this would:');
-        console.log('  1. Pay $0.50 USDC via x402');
+        console.log('  1. Pay $0.25 USDC via x402 (Solana source only)');
         console.log('  2. Initiate the cross-chain swap');
         console.log('  3. Monitor status until completion');
         return;
@@ -165,22 +166,25 @@ export const swapCommand = new Command('swap')
 
       // Execute swap with v2 API (no need for getTokenInfo - API handles it)
       const executeResponse = await client.executeSwap({
-        sourceChainId: source.chain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: dest.chain,
-        destinationTokenAddress: destToken,
+        sourceChain: source.chain,
+        sourceToken: sourceToken,
+        destinationChain: dest.chain,
+        destinationToken: destToken,
         amount: options.amount,
-        senderAddress: options.sender || 'default-sender',
-        recipientAddress: options.destination,
+        userWallet: options.sender || 'default-sender',
+        recipient: options.destination,
         slippageTolerance: slippage,
       });
 
       logger.success(`Swap transaction received!`);
       logger.table({
-        'Order ID': executeResponse.orderId,
-        'Gas Reimbursement': executeResponse.accounting.gasReimbursement?.amountFormatted ?? 'N/A (EVM source)',
-        'x402 Fee (USD)': `$${executeResponse.accounting.x402Fee.amountUsd}`,
-        'Is Token-2022': executeResponse.isToken2022 ? 'Yes' : 'No',
+        'Request ID': executeResponse.requestId,
+        'Source Chain': executeResponse.sourceChain,
+        'Estimated Output': executeResponse.estimatedOutput,
+        'ClawSwap Fee': executeResponse.fees.clawswap,
+        'Relay Fee': executeResponse.fees.relay,
+        'Gas Fee': executeResponse.fees.gas,
+        'Instructions': executeResponse.instructions,
       });
 
       console.log();
@@ -346,13 +350,13 @@ export const swapCommand = new Command('swap')
       }
 
 
-      // STEP 3: Monitor status (using order ID from execute response)
+      // STEP 3: Monitor status (using request ID from execute response)
       console.log();
       logger.info('Step 3/3: Monitoring swap status...');
       logger.info('This may take several minutes depending on network congestion');
       console.log();
 
-      const result = await client.waitForSettlement(executeResponse.orderId, {
+      const result = await client.waitForSettlement(executeResponse.requestId, {
         timeout: 300000, // 5 minutes
         interval: 3000, // 3 seconds
         onStatusUpdate: (status) => {
@@ -365,32 +369,25 @@ export const swapCommand = new Command('swap')
           if (status.destinationTxHash) {
             console.log(`  Destination TX: ${status.destinationTxHash}`);
           }
-          if (status.explorerUrl) {
-            console.log(`  Explorer: ${status.explorerUrl}`);
-          }
         },
       });
 
       console.log();
-      if (result.status === 'fulfilled' || result.status === 'completed') {
-        logger.success('✨ Swap completed successfully!');
+      if (result.status === 'completed') {
+        logger.success('Swap completed successfully!');
         logger.table({
-          'Order ID': result.orderId,
+          'Request ID': result.requestId,
           'Status': result.status,
-          'Source Amount': result.sourceAmount,
-          'Destination Amount': result.destinationAmount,
+          'Output Amount': result.outputAmount,
           'Destination Address': options.destination,
         });
 
-        if (result.explorerUrl) {
+        if (result.completedAt) {
           console.log();
-          logger.info(`View on explorer: ${result.explorerUrl}`);
+          logger.info(`Completed at: ${result.completedAt}`);
         }
       } else {
         logger.error(`Swap ${result.status}`);
-        if (result.failureReason) {
-          logger.error(`Reason: ${result.failureReason}`);
-        }
         process.exit(1);
       }
 

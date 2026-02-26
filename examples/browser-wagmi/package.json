@@ -1,7 +1,7 @@
 {
-  "name": "@clawswap/example-browser",
+  "name": "@clawswap/example-browser-wagmi",
   "version": "0.1.0",
-  "description": "Browser example for ClawSwap SDK",
+  "description": "Browser example for ClawSwap SDK using wagmi v2 + ConnectKit",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,15 +11,18 @@
   },
   "dependencies": {
     "@clawswap/sdk": "workspace:*",
-    "@x402/fetch": "^2.3.0",
+    "@tanstack/react-query": "^5.0.0",
     "@x402/core": "^2.3.0",
     "@x402/evm": "^2.3.0",
+    "@x402/fetch": "^2.3.0",
     "@x402/svm": "^2.3.0",
     "@solana/kit": "^5.1.0",
     "@solana/web3.js": "^1.95.0",
+    "connectkit": "^1.8.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "viem": "^2.0.0"
+    "viem": "^2.0.0",
+    "wagmi": "^2.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

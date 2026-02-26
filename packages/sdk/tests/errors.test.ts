@@ -1,13 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   ClawSwapError,
+  MissingFieldError,
+  UnsupportedChainError,
+  UnsupportedRouteError,
+  QuoteFailedError,
   InsufficientLiquidityError,
   AmountTooLowError,
   AmountTooHighError,
-  UnsupportedPairError,
-  QuoteExpiredError,
+  GasExceedsThresholdError,
+  RelayUnavailableError,
   PaymentRequiredError,
-  PaymentVerificationError,
+  RateLimitExceededError,
   NetworkError,
   TimeoutError,
   mapApiError,
@@ -16,38 +20,75 @@ import {
 describe('Error Classes', () => {
   describe('ClawSwapError', () => {
     it('should create base error with code and message', () => {
-      const error = new ClawSwapError('UNKNOWN_ERROR', 'Test error');
+      const error = new ClawSwapError('NETWORK_ERROR', 'Test error');
 
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(ClawSwapError);
-      expect(error.code).toBe('UNKNOWN_ERROR');
+      expect(error.code).toBe('NETWORK_ERROR');
       expect(error.message).toBe('Test error');
       expect(error.name).toBe('ClawSwapError');
     });
 
-    it('should include details', () => {
-      const details = { amount: '1000', minimum: '5000' };
-      const error = new ClawSwapError('AMOUNT_TOO_LOW', 'Amount too low', details);
+    it('should include suggestion', () => {
+      const error = new ClawSwapError('AMOUNT_TOO_LOW', 'Amount too low', 'Try at least 1000 USDC');
 
-      expect(error.details).toEqual(details);
+      expect(error.suggestion).toBe('Try at least 1000 USDC');
     });
 
-    it('should serialize to JSON', () => {
-      const error = new ClawSwapError('TIMEOUT', 'Request timed out', { timeoutMs: 30000 });
+    it('should serialize to v2 JSON envelope', () => {
+      const error = new ClawSwapError('TIMEOUT', 'Request timed out', 'Increase timeout');
       const json = error.toJSON();
 
       expect(json).toEqual({
-        code: 'TIMEOUT',
-        message: 'Request timed out',
-        details: { timeoutMs: 30000 },
+        error: {
+          code: 'TIMEOUT',
+          message: 'Request timed out',
+          suggestion: 'Increase timeout',
+        },
+      });
+    });
+
+    it('should omit suggestion when undefined', () => {
+      const error = new ClawSwapError('TIMEOUT', 'Request timed out');
+      const json = error.toJSON();
+
+      expect(json).toEqual({
+        error: {
+          code: 'TIMEOUT',
+          message: 'Request timed out',
+        },
       });
     });
   });
 
   describe('Specific Error Classes', () => {
+    it('should create MissingFieldError', () => {
+      const error = new MissingFieldError();
+      expect(error).toBeInstanceOf(ClawSwapError);
+      expect(error.code).toBe('MISSING_FIELD');
+      expect(error.name).toBe('MissingFieldError');
+    });
+
+    it('should create UnsupportedChainError', () => {
+      const error = new UnsupportedChainError();
+      expect(error.code).toBe('UNSUPPORTED_CHAIN');
+      expect(error.name).toBe('UnsupportedChainError');
+    });
+
+    it('should create UnsupportedRouteError', () => {
+      const error = new UnsupportedRouteError();
+      expect(error.code).toBe('UNSUPPORTED_ROUTE');
+      expect(error.name).toBe('UnsupportedRouteError');
+    });
+
+    it('should create QuoteFailedError', () => {
+      const error = new QuoteFailedError();
+      expect(error.code).toBe('QUOTE_FAILED');
+      expect(error.name).toBe('QuoteFailedError');
+    });
+
     it('should create InsufficientLiquidityError', () => {
       const error = new InsufficientLiquidityError();
-
       expect(error).toBeInstanceOf(ClawSwapError);
       expect(error.code).toBe('INSUFFICIENT_LIQUIDITY');
       expect(error.name).toBe('InsufficientLiquidityError');
@@ -56,52 +97,46 @@ describe('Error Classes', () => {
 
     it('should create AmountTooLowError with custom message', () => {
       const error = new AmountTooLowError('Minimum is 1000 USDC');
-
       expect(error.code).toBe('AMOUNT_TOO_LOW');
       expect(error.message).toBe('Minimum is 1000 USDC');
     });
 
     it('should create AmountTooHighError', () => {
       const error = new AmountTooHighError();
-
       expect(error.code).toBe('AMOUNT_TOO_HIGH');
       expect(error.name).toBe('AmountTooHighError');
     });
 
-    it('should create UnsupportedPairError', () => {
-      const error = new UnsupportedPairError();
-
-      expect(error.code).toBe('UNSUPPORTED_PAIR');
+    it('should create GasExceedsThresholdError', () => {
+      const error = new GasExceedsThresholdError();
+      expect(error.code).toBe('GAS_EXCEEDS_THRESHOLD');
+      expect(error.name).toBe('GasExceedsThresholdError');
     });
 
-    it('should create QuoteExpiredError', () => {
-      const error = new QuoteExpiredError();
-
-      expect(error.code).toBe('QUOTE_EXPIRED');
-      expect(error.message).toContain('expired');
+    it('should create RelayUnavailableError', () => {
+      const error = new RelayUnavailableError();
+      expect(error.code).toBe('RELAY_UNAVAILABLE');
+      expect(error.name).toBe('RelayUnavailableError');
     });
 
     it('should create PaymentRequiredError', () => {
       const error = new PaymentRequiredError();
-
       expect(error.code).toBe('PAYMENT_REQUIRED');
     });
 
-    it('should create PaymentVerificationError', () => {
-      const error = new PaymentVerificationError();
-
-      expect(error.code).toBe('PAYMENT_VERIFICATION_FAILED');
+    it('should create RateLimitExceededError', () => {
+      const error = new RateLimitExceededError();
+      expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
+      expect(error.name).toBe('RateLimitExceededError');
     });
 
     it('should create NetworkError', () => {
       const error = new NetworkError();
-
       expect(error.code).toBe('NETWORK_ERROR');
     });
 
     it('should create TimeoutError', () => {
       const error = new TimeoutError();
-
       expect(error.code).toBe('TIMEOUT');
     });
   });
@@ -109,8 +144,7 @@ describe('Error Classes', () => {
   describe('mapApiError', () => {
     it('should map INSUFFICIENT_LIQUIDITY code', () => {
       const error = mapApiError(400, {
-        code: 'INSUFFICIENT_LIQUIDITY',
-        message: 'Not enough liquidity',
+        error: { code: 'INSUFFICIENT_LIQUIDITY', message: 'Not enough liquidity' },
       });
 
       expect(error).toBeInstanceOf(InsufficientLiquidityError);
@@ -119,26 +153,23 @@ describe('Error Classes', () => {
 
     it('should map AMOUNT_TOO_LOW code', () => {
       const error = mapApiError(400, {
-        code: 'AMOUNT_TOO_LOW',
-        message: 'Amount below minimum',
+        error: { code: 'AMOUNT_TOO_LOW', message: 'Amount below minimum' },
       });
 
       expect(error).toBeInstanceOf(AmountTooLowError);
     });
 
-    it('should map QUOTE_EXPIRED code', () => {
+    it('should map UNSUPPORTED_ROUTE code', () => {
       const error = mapApiError(400, {
-        code: 'QUOTE_EXPIRED',
-        message: 'Quote expired',
+        error: { code: 'UNSUPPORTED_ROUTE', message: 'Route not supported' },
       });
 
-      expect(error).toBeInstanceOf(QuoteExpiredError);
+      expect(error).toBeInstanceOf(UnsupportedRouteError);
     });
 
     it('should map PAYMENT_REQUIRED code', () => {
       const error = mapApiError(402, {
-        code: 'PAYMENT_REQUIRED',
-        message: 'Payment required',
+        error: { code: 'PAYMENT_REQUIRED', message: 'Payment required' },
       });
 
       expect(error).toBeInstanceOf(PaymentRequiredError);
@@ -146,56 +177,94 @@ describe('Error Classes', () => {
 
     it('should map TIMEOUT code', () => {
       const error = mapApiError(408, {
-        code: 'TIMEOUT',
-        message: 'Request timeout',
+        error: { code: 'TIMEOUT', message: 'Request timeout' },
       });
 
       expect(error).toBeInstanceOf(TimeoutError);
     });
 
-    it('should handle unknown error codes', () => {
+    it('should map RATE_LIMIT_EXCEEDED code', () => {
+      const error = mapApiError(429, {
+        error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' },
+      });
+
+      expect(error).toBeInstanceOf(RateLimitExceededError);
+    });
+
+    it('should handle unknown error codes gracefully', () => {
       const error = mapApiError(400, {
-        code: 'INVALID_CHAIN_ID' as any,
-        message: 'Invalid chain',
+        error: { code: 'SOME_NEW_CODE', message: 'Something new' },
       });
 
       expect(error).toBeInstanceOf(ClawSwapError);
-      expect(error.code).toBe('INVALID_CHAIN_ID');
+      expect(error.code).toBe('SOME_NEW_CODE');
     });
 
     it('should fallback to 402 status code', () => {
       const error = mapApiError(402, {
-        message: 'Payment required',
+        error: { message: 'Payment required' },
       });
 
       expect(error).toBeInstanceOf(PaymentRequiredError);
     });
 
-    it('should map 500+ status codes to SERVER_CONFIGURATION_ERROR', () => {
-      const error = mapApiError(500, {
-        message: 'Internal server error',
-      });
+    it('should fallback to 429 status code', () => {
+      const error = mapApiError(429, {});
 
-      expect(error).toBeInstanceOf(ClawSwapError);
-      expect(error.code).toBe('SERVER_CONFIGURATION_ERROR');
+      expect(error).toBeInstanceOf(RateLimitExceededError);
     });
 
-    it('should default to UNKNOWN_ERROR', () => {
+    it('should map 500+ status codes to RelayUnavailableError', () => {
+      const error = mapApiError(500, {
+        error: { message: 'Internal server error' },
+      });
+
+      expect(error).toBeInstanceOf(RelayUnavailableError);
+      expect(error.code).toBe('RELAY_UNAVAILABLE');
+    });
+
+    it('should default to NETWORK_ERROR for unknown status', () => {
       const error = mapApiError(400, {});
 
-      expect(error.code).toBe('UNKNOWN_ERROR');
+      expect(error.code).toBe('NETWORK_ERROR');
       expect(error.message).toBe('Unknown error occurred');
     });
 
-    it('should preserve error details', () => {
-      const details = { minimumAmount: '1000', providedAmount: '500' };
+    it('should preserve suggestion from error envelope', () => {
       const error = mapApiError(400, {
-        code: 'AMOUNT_TOO_LOW',
-        message: 'Amount too low',
-        details,
+        error: {
+          code: 'AMOUNT_TOO_LOW',
+          message: 'Amount too low',
+          suggestion: 'Try at least 1000 USDC',
+        },
       });
 
-      expect(error.details).toEqual(details);
+      expect(error.suggestion).toBe('Try at least 1000 USDC');
+    });
+
+    it('should handle null errorData without throwing', () => {
+      const error = mapApiError(500, null);
+      expect(error).toBeInstanceOf(RelayUnavailableError);
+    });
+
+    it('should handle undefined errorData without throwing', () => {
+      const error = mapApiError(400, undefined);
+      expect(error).toBeInstanceOf(ClawSwapError);
+      expect(error.code).toBe('NETWORK_ERROR');
+    });
+
+    it('should map 404 status code to UNSUPPORTED_ROUTE', () => {
+      const error = mapApiError(404, {
+        error: { message: 'Not found' },
+      });
+      expect(error.code).toBe('UNSUPPORTED_ROUTE');
+      expect(error.message).toBe('Not found');
+    });
+
+    it('should map 404 with no body to UNSUPPORTED_ROUTE', () => {
+      const error = mapApiError(404, {});
+      expect(error.code).toBe('UNSUPPORTED_ROUTE');
+      expect(error.message).toBe('Resource not found');
     });
   });
 });

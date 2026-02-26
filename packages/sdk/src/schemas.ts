@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Zod schemas for request/response validation
+ * Zod schemas for request/response validation (v2)
  */
 
 // Chain ID validation
@@ -10,11 +10,12 @@ export const chainIdSchema = z.string().min(1, 'Chain ID is required');
 // Token address validation (supports EVM and Solana)
 export const tokenAddressSchema = z.string().min(1, 'Token address is required');
 
-// Amount validation (positive number as string)
+// Amount validation (positive finite number as string, no scientific notation)
 export const amountSchema = z.string().refine(
   (val) => {
+    if (/[eE]/.test(val)) return false;
     const num = parseFloat(val);
-    return !isNaN(num) && num > 0;
+    return Number.isFinite(num) && num > 0;
   },
   { message: 'Amount must be a positive number' }
 );
@@ -31,21 +32,21 @@ export const addressSchema = z.string().min(1, 'Address is required').refine(
   { message: 'Invalid address format (must be EVM 0x... or Solana base58)' }
 );
 
-// Quote request schema
+// Quote request schema (v2 field names)
 export const quoteRequestSchema = z.object({
-  sourceChainId: chainIdSchema,
-  sourceTokenAddress: tokenAddressSchema,
-  destinationChainId: chainIdSchema,
-  destinationTokenAddress: tokenAddressSchema,
+  sourceChain: chainIdSchema,
+  sourceToken: tokenAddressSchema,
+  destinationChain: chainIdSchema,
+  destinationToken: tokenAddressSchema,
   amount: amountSchema,
-  senderAddress: addressSchema,
-  recipientAddress: addressSchema,
+  userWallet: addressSchema,
+  recipient: addressSchema,
   slippageTolerance: z.number().min(0).max(1).optional(),
 });
 
-// Status request schema
+// Status request schema (v2 field names)
 export const statusRequestSchema = z.object({
-  orderId: z.string().min(1, 'Order ID is required'),
+  requestId: z.string().min(1, 'Request ID is required'),
 });
 
 export type QuoteRequestInput = z.infer<typeof quoteRequestSchema>;

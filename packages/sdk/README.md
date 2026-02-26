@@ -82,13 +82,13 @@ const client = new ClawSwapClient({ fetch: fetchWithPayment });
 
 // 2. Execute swap
 const swap = await client.executeSwap({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  sourceChain: 'solana',
+  sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  destinationChain: 'base',
+  destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   amount: '1000000', // 1 USDC (6 decimals)
-  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+  userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+  recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
 });
 
 // 3. Sign and submit (Solana source returns base64 string)
@@ -100,7 +100,7 @@ const signature = await connection.sendRawTransaction(tx.serialize());
 await connection.confirmTransaction(signature);
 
 // 4. Wait for completion
-const result = await client.waitForSettlement(swap.orderId);
+const result = await client.waitForSettlement(swap.requestId);
 console.log(`Swap ${result.status}!`);
 ```
 
@@ -118,13 +118,13 @@ const client = new ClawSwapClient();
 
 // 2. Execute swap
 const swap = await client.executeSwap({
-  sourceChainId: 'base',
-  sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  destinationChainId: 'solana',
-  destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  sourceChain: 'base',
+  sourceToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  destinationChain: 'solana',
+  destinationToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
   amount: '1000000',
-  senderAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-  recipientAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+  userWallet: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+  recipient: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
 });
 
 // 3. Sign and submit (Base source returns ordered transactions array)
@@ -145,7 +145,7 @@ if (isEvmSource(swap)) {
 }
 
 // 4. Wait for completion
-const result = await client.waitForSettlement(swap.orderId);
+const result = await client.waitForSettlement(swap.requestId);
 console.log(`Swap ${result.status}!`);
 ```
 
@@ -155,7 +155,6 @@ console.log(`Swap ${result.status}!`);
 - ✅ **x402 Compatible** - Accepts x402-wrapped fetch for automatic payment handling
 - ✅ **Status Polling** - `waitForSettlement()` polls until swap completes
 - ✅ **Typed Errors** - Specific error classes for each failure type
-- ✅ **Quote Expiry Tracking** - `expiresIn` field shows seconds until quote expires
 - ✅ **Discovery Helpers** - Methods to get supported chains, tokens, and pairs
 - ✅ **Framework Agnostic** - Works with any fetch implementation
 
@@ -196,13 +195,13 @@ Get a quote for a cross-chain swap. **Free endpoint**.
 
 ```typescript
 const quote = await client.getQuote({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  sourceChain: 'solana',
+  sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  destinationChain: 'base',
+  destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
   amount: '1000000', // 1 USDC (6 decimals)
-  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+  userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+  recipient: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
   slippageTolerance: 0.01, // Optional, 1%
 });
 ```
@@ -231,26 +230,26 @@ if (isEvmSource(response)) {
   // Solana source → deserialize base64, sign, submit to Solana
 }
 
-console.log(response.orderId); // Use for status tracking
+console.log(response.requestId); // Use for status tracking
 ```
 
-##### `getStatus(orderId: string): Promise<StatusResponse>`
+##### `getStatus(requestId: string): Promise<StatusResponse>`
 
-Check the status of a swap using the order ID. **Free endpoint**.
+Check the status of a swap using the request ID. **Free endpoint**.
 
 ```typescript
-// Use orderId from executeSwap response
-const status = await client.getStatus(response.orderId);
-console.log(status.status); // 'pending' | 'created' | 'fulfilled' | 'completed' | 'failed' | 'cancelled'
+// Use requestId from executeSwap response
+const status = await client.getStatus(response.requestId);
+console.log(status.status); // 'pending' | 'submitted' | 'filling' | 'completed' | 'failed'
 ```
 
-##### `waitForSettlement(orderId: string, options?): Promise<StatusResponse>`
+##### `waitForSettlement(requestId: string, options?): Promise<StatusResponse>`
 
-Poll until swap reaches a terminal state (fulfilled/completed/failed/cancelled).
+Poll until swap reaches a terminal state (completed/failed).
 
 ```typescript
-// Use orderId from executeSwap response
-const result = await client.waitForSettlement(response.orderId, {
+// Use requestId from executeSwap response
+const result = await client.waitForSettlement(response.requestId, {
   timeout: 300000, // 5 minutes (default)
   interval: 3000,  // Poll every 3 seconds (default)
   onStatusUpdate: (status) => {
@@ -292,7 +291,6 @@ The SDK throws typed errors for specific failure scenarios:
 import {
   ClawSwapError,
   InsufficientLiquidityError,
-  QuoteExpiredError,
   PaymentRequiredError
 } from '@clawswap/sdk';
 
@@ -300,9 +298,7 @@ try {
   await client.executeSwap(request);
 } catch (error) {
   if (error instanceof InsufficientLiquidityError) {
-    console.error('Not enough liquidity:', error.details);
-  } else if (error instanceof QuoteExpiredError) {
-    console.error('Quote expired, get a new one');
+    console.error('Not enough liquidity:', error.suggestion);
   } else if (error instanceof PaymentRequiredError) {
     console.error('Payment failed:', error.message);
   } else if (error instanceof ClawSwapError) {
@@ -312,38 +308,18 @@ try {
 ```
 
 **Available Error Classes:**
+- `MissingFieldError` - Required field missing from request
+- `UnsupportedChainError` - Chain not supported
+- `UnsupportedRouteError` - Token pair/route not supported
+- `QuoteFailedError` - Failed to get quote
 - `InsufficientLiquidityError` - Not enough liquidity for swap
 - `AmountTooLowError` / `AmountTooHighError` - Amount outside limits
-- `UnsupportedPairError` - Token pair not supported
-- `QuoteExpiredError` - Quote expired (30s TTL)
-- `PaymentRequiredError` / `PaymentVerificationError` - x402 payment issues
+- `GasExceedsThresholdError` - Gas cost exceeds safety threshold
+- `RelayUnavailableError` - Relay bridge service unavailable
+- `PaymentRequiredError` - x402 payment required (Solana-source swaps)
+- `RateLimitExceededError` - Too many requests
 - `NetworkError` - Network request failed
 - `TimeoutError` - Request or polling timed out
-
-## Quote Expiry
-
-When using `getQuote()` for preview, quotes expire in **30 seconds**. The SDK includes `expiresIn` and `expiresAt` fields:
-
-```typescript
-const quote = await client.getQuote(request);
-console.log(`Quote expires in ${quote.expiresIn} seconds`);
-console.log(`Estimated output: ${quote.destinationAmount} tokens`);
-```
-
-**Note:** Quote expiry is NOT an issue when executing swaps. The `executeSwap()` method fetches a fresh quote internally, so you don't need to worry about timing:
-
-```typescript
-// No quote expiry issues - API fetches fresh quote
-const executeResponse = await client.executeSwap({
-  sourceChainId: 'solana',
-  sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  destinationChainId: 'base',
-  destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  amount: '1000000',
-  senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-  recipientAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-});
-```
 
 ## Usage Without x402
 

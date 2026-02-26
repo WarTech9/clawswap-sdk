@@ -12,6 +12,7 @@
     "dev": "pnpm -r dev",
     "example:node": "pnpm --filter @clawswap/example-node-cli dev",
     "example:browser": "pnpm --filter @clawswap/example-browser dev",
+    "example:browser-wagmi": "pnpm --filter @clawswap/example-browser-wagmi dev",
     "examples:install": "pnpm --filter './examples/**' install",
     "examples:build": "pnpm --filter './examples/**' build"
   },
@@ -28,6 +29,6 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "pnpm": ">=9.0.0"
   }
 }

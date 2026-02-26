@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ClawSwapClient } from '../src/client';
-import type { QuoteResponse, SwapResponse, StatusResponse, Chain, Token, EvmTransaction, ExecuteSwapResponse } from '../src/types';
-import { isEvmTransaction, isEvmSource, isSolanaSource } from '../src/types';
+import type { QuoteResponse, StatusResponse, Chain, Token, EvmTransaction, ExecuteSwapResponse } from '../src/types';
+import { isEvmSource, isSolanaSource } from '../src/types';
 import {
+  ClawSwapError,
   InsufficientLiquidityError,
-  QuoteExpiredError,
+  NetworkError,
   PaymentRequiredError,
   TimeoutError,
+  UnsupportedChainError,
 } from '../src/errors';
 
 describe('ClawSwapClient', () => {
@@ -28,29 +30,32 @@ describe('ClawSwapClient', () => {
 
   describe('getQuote', () => {
     const validQuoteRequest = {
-      sourceChainId: 'solana',
-      sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      destinationChainId: 'base',
-      destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      sourceChain: 'solana',
+      sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      destinationChain: 'base',
+      destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       amount: '1000000',
-      senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-      recipientAddress: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
+      userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+      recipient: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
     };
 
     it('should return quote response successfully', async () => {
       const mockQuote: QuoteResponse = {
-        quoteId: 'quote-123',
-        sourceAmount: '1000000',
-        destinationAmount: '999000',
+        estimatedOutput: '999000',
+        estimatedOutputFormatted: '0.999',
+        estimatedTime: 300,
         fees: {
-          bridgeFeeUsd: 0.25,
-          x402FeeUsd: 0.50,
-          gasReimbursementEstimatedUsd: 0.002,
-          totalEstimatedFeeUsd: 0.752,
+          clawswap: '0.25',
+          relay: '0.03',
+          gas: '0.00 (sponsored)',
         },
-        estimatedTimeSeconds: 300,
-        expiresAt: new Date(Date.now() + 30000).toISOString(),
-        expiresIn: 30,
+        route: {
+          sourceChain: 'solana',
+          sourceToken: { symbol: 'USDC', address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', decimals: 6 },
+          destinationChain: 'base',
+          destinationToken: { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+        },
+        supported: true,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -76,12 +81,12 @@ describe('ClawSwapClient', () => {
     it('should validate input parameters', async () => {
       await expect(
         client.getQuote({
-          sourceChainId: '',
-          sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-          destinationChainId: 'base',
-          destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          sourceChain: '',
+          sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          destinationChain: 'base',
+          destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
           amount: '1000000',
-        })
+        } as any)
       ).rejects.toThrow();
     });
 
@@ -99,8 +104,7 @@ describe('ClawSwapClient', () => {
         ok: false,
         status: 400,
         json: async () => ({
-          code: 'INSUFFICIENT_LIQUIDITY',
-          message: 'Not enough liquidity',
+          error: { code: 'INSUFFICIENT_LIQUIDITY', message: 'Not enough liquidity' },
         }),
       });
 
@@ -112,41 +116,28 @@ describe('ClawSwapClient', () => {
 
   describe('executeSwap', () => {
     const validExecuteRequest = {
-      sourceChainId: 'solana',
-      sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      destinationChainId: 'base',
-      destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      sourceChain: 'solana',
+      sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      destinationChain: 'base',
+      destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
       amount: '1000000',
-      senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-      recipientAddress: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
+      userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+      recipient: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
     };
 
     it('should execute swap successfully', async () => {
-      const mockExecuteResponse = {
+      const mockExecuteResponse: ExecuteSwapResponse = {
+        requestId: 'req-123',
         transaction: 'base64-encoded-transaction-data',
-        orderId: 'order-123',
-        isToken2022: false,
-        accounting: {
-          x402Fee: {
-            amountUsd: 0.50,
-            currency: 'USDC',
-            recipient: 'x402-treasury-address',
-            note: 'x402 payment for swap execution',
-          },
-          gasReimbursement: {
-            amountRaw: '5000',
-            amountFormatted: '0.000005',
-            tokenMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            recipient: 'recipient-address',
-            note: 'Gas reimbursement for Base transaction',
-          },
-          bridgeFee: {
-            estimatedUsd: 0.25,
-            note: 'Relay bridge fee',
-          },
-          sourceAmount: '1000000',
-          destinationAmount: '999000',
+        sourceChain: 'solana',
+        estimatedOutput: '999000',
+        estimatedTime: 300,
+        fees: {
+          clawswap: '0.25',
+          relay: '0.03',
+          gas: '0.00 (sponsored)',
         },
+        instructions: 'Sign and submit to Solana RPC',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -157,6 +148,7 @@ describe('ClawSwapClient', () => {
       const result = await client.executeSwap(validExecuteRequest);
 
       expect(result).toEqual(mockExecuteResponse);
+      expect(result.requestId).toBe('req-123');
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.test.clawswap.dev/api/swap/execute',
         expect.objectContaining({
@@ -170,19 +162,18 @@ describe('ClawSwapClient', () => {
         ok: false,
         status: 402,
         json: async () => ({
-          code: 'PAYMENT_REQUIRED',
-          message: 'Payment required',
+          error: { code: 'PAYMENT_REQUIRED', message: 'Payment required' },
         }),
       });
 
       await expect(client.executeSwap(validExecuteRequest)).rejects.toThrow(PaymentRequiredError);
     });
 
-    it('should require senderAddress', async () => {
+    it('should require userWallet', async () => {
       await expect(
         client.executeSwap({
           ...validExecuteRequest,
-          senderAddress: '',
+          userWallet: '',
         })
       ).rejects.toThrow();
     });
@@ -191,17 +182,14 @@ describe('ClawSwapClient', () => {
   describe('getStatus', () => {
     it('should return swap status', async () => {
       const mockStatus: StatusResponse = {
-        orderId: 'order-123',
-        status: 'fulfilled',
-        sourceChainId: 'solana',
-        destinationChainId: 'base',
-        sourceAmount: '1000000',
-        destinationAmount: '999000',
+        requestId: 'req-123',
+        status: 'completed',
+        sourceChain: 'solana',
+        destinationChain: 'base',
+        outputAmount: '999000',
         sourceTxHash: '5J7Qstq6afbmW9mAW4GvKBZkLXhJ9J1UmZJpZEhcZcZz',
-        destinationTxHash: '0xabc123def456...',
-        explorerUrl: 'https://basescan.org/tx/0xabc123def456...',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        destinationTxHash: '0xabc123def456',
+        completedAt: new Date().toISOString(),
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -209,11 +197,11 @@ describe('ClawSwapClient', () => {
         json: async () => mockStatus,
       });
 
-      const result = await client.getStatus('swap-123');
+      const result = await client.getStatus('req-123');
 
       expect(result).toEqual(mockStatus);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.test.clawswap.dev/api/swap/swap-123/status',
+        'https://api.test.clawswap.dev/api/swap/req-123/status',
         expect.any(Object)
       );
     });
@@ -223,37 +211,28 @@ describe('ClawSwapClient', () => {
     it('should poll until completed', async () => {
       const mockStatuses: StatusResponse[] = [
         {
-          orderId: 'swap-123',
+          requestId: 'req-123',
           status: 'pending',
-          sourceChainId: 'solana',
-          sourceAmount: '1000000',
-          destinationChainId: 'base',
-          destinationAmount: '999000',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          sourceChain: 'solana',
+          destinationChain: 'base',
+          outputAmount: '999000',
         },
         {
-          orderId: 'swap-123',
-          status: 'created',
-          sourceChainId: 'solana',
-          sourceAmount: '1000000',
-          destinationChainId: 'base',
-          destinationAmount: '999000',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          requestId: 'req-123',
+          status: 'submitted',
+          sourceChain: 'solana',
+          destinationChain: 'base',
+          outputAmount: '999000',
         },
         {
-          orderId: 'swap-123',
+          requestId: 'req-123',
           status: 'completed',
-          sourceChainId: 'solana',
-          sourceAmount: '1000000',
-          destinationChainId: 'base',
-          destinationAmount: '999000',
+          sourceChain: 'solana',
+          destinationChain: 'base',
+          outputAmount: '999000',
           sourceTxHash: '5J7Qstq6afbmW9mAW4GvKBZkLXhJ9J1UmZJpZEhcZcZz',
-          destinationTxHash: '0xabc123def456...',
-          explorerUrl: 'https://basescan.org/tx/0xabc123def456...',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          destinationTxHash: '0xabc123def456',
+          completedAt: new Date().toISOString(),
         },
       ];
 
@@ -266,7 +245,7 @@ describe('ClawSwapClient', () => {
         });
       });
 
-      const result = await client.waitForSettlement('swap-123', {
+      const result = await client.waitForSettlement('req-123', {
         interval: 10, // Fast polling for tests
       });
 
@@ -278,19 +257,16 @@ describe('ClawSwapClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
-          orderId: 'swap-123',
+          requestId: 'req-123',
           status: 'pending',
-          sourceChainId: 'solana',
-          sourceAmount: '1000000',
-          destinationChainId: 'base',
-          destinationAmount: '999000',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          sourceChain: 'solana',
+          destinationChain: 'base',
+          outputAmount: '999000',
         }),
       });
 
       await expect(
-        client.waitForSettlement('swap-123', {
+        client.waitForSettlement('req-123', {
           timeout: 100,
           interval: 10,
         })
@@ -304,31 +280,26 @@ describe('ClawSwapClient', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            orderId: 'swap-123',
+            requestId: 'req-123',
             status: 'pending',
-            sourceChainId: 'solana',
-            destinationChainId: 'base',
-            sourceAmount: '1000000',
-            destinationAmount: '999000',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            sourceChain: 'solana',
+            destinationChain: 'base',
+            outputAmount: '999000',
           }),
         })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            orderId: 'swap-123',
+            requestId: 'req-123',
             status: 'completed',
-            sourceChainId: 'solana',
-            destinationChainId: 'base',
-            sourceAmount: '1000000',
-            destinationAmount: '999000',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            sourceChain: 'solana',
+            destinationChain: 'base',
+            outputAmount: '999000',
+            completedAt: new Date().toISOString(),
           }),
         });
 
-      await client.waitForSettlement('swap-123', {
+      await client.waitForSettlement('req-123', {
         interval: 10,
         onStatusUpdate,
       });
@@ -365,6 +336,15 @@ describe('ClawSwapClient', () => {
         expect.any(Object)
       );
     });
+
+    it('should throw NetworkError on malformed API response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: 'wrong shape' }),
+      });
+
+      await expect(client.getSupportedChains()).rejects.toThrow(NetworkError);
+    });
   });
 
   describe('getSupportedTokens', () => {
@@ -392,34 +372,54 @@ describe('ClawSwapClient', () => {
         expect.any(Object)
       );
     });
+
+    it('should reject path traversal in chainId', async () => {
+      await expect(client.getSupportedTokens('../admin')).rejects.toThrow(UnsupportedChainError);
+      await expect(client.getSupportedTokens('solana/../admin')).rejects.toThrow(UnsupportedChainError);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('should throw NetworkError on malformed API response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: 'wrong shape' }),
+      });
+
+      await expect(client.getSupportedTokens('solana')).rejects.toThrow(NetworkError);
+    });
   });
 
   describe('timeout handling', () => {
-    it.skip('should timeout long requests', async () => {
-      mockFetch.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  json: async () => ({}),
-                }),
-              10000
-            )
-          )
-      );
+    it('should throw TimeoutError on AbortError', async () => {
+      mockFetch.mockImplementation(() => {
+        const error = new DOMException('The operation was aborted', 'AbortError');
+        return Promise.reject(error);
+      });
 
       await expect(client.getQuote({
-        sourceChainId: 'solana',
-        sourceTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        destinationChainId: 'base',
-        destinationTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        sourceChain: 'solana',
+        sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        destinationChain: 'base',
+        destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         amount: '1000000',
-        senderAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
-        recipientAddress: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
-      })).rejects.toThrow('Request timed out');
-    }, 10000);
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
+      })).rejects.toThrow(TimeoutError);
+    });
+
+    it('should throw NetworkError for generic fetch failures', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      await expect(client.getQuote({
+        sourceChain: 'solana',
+        sourceToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        destinationChain: 'base',
+        destinationToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        amount: '1000000',
+        userWallet: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+        recipient: '0x07150e919b4de5fd6a63de1f9384828396f25fdc',
+      })).rejects.toThrow(NetworkError);
+    });
   });
 
   describe('getSwapFee', () => {
@@ -430,21 +430,16 @@ describe('ClawSwapClient', () => {
           currency: 'USDC',
           network: 'solana',
           appliesTo: 'Solana-source swaps only',
-          description: 'x402 payment required per swap execution',
+          description: 'Fixed fee charged via x402 protocol.',
         },
-        gasReimbursement: {
-          estimatedUsd: '~0.001',
-          currency: 'USDC or USDT',
-          appliesTo: 'Solana-source swaps only',
-          description: 'Reimburses gas costs',
-        },
+        gasReimbursement: null,
         bridgeFee: {
           estimatedUsd: '~0.03–0.05',
           currency: 'Source token',
           appliesTo: 'All swaps',
           description: 'Relay bridge fee',
         },
-        note: 'Solana-source: total cost = x402Fee + gasReimbursement + bridgeFee',
+        note: 'Solana-source: total cost = x402Fee + bridgeFee. EVM-source: total cost = bridgeFee + gas.',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -456,7 +451,7 @@ describe('ClawSwapClient', () => {
 
       expect(result).toEqual(mockFee);
       expect(result.x402Fee.amountUsd).toBe(0.5);
-      expect(result.gasReimbursement.estimatedUsd).toBe('~0.001');
+      expect(result.gasReimbursement).toBeNull();
       expect(result.bridgeFee.estimatedUsd).toBe('~0.03–0.05');
       expect(typeof result.note).toBe('string');
       expect(mockFetch).toHaveBeenCalledWith(
@@ -465,26 +460,27 @@ describe('ClawSwapClient', () => {
       );
     });
 
-    it('should propagate network errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    it('should propagate network errors as NetworkError', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
 
-      await expect(client.getSwapFee()).rejects.toThrow();
+      await expect(client.getSwapFee()).rejects.toThrow(NetworkError);
     });
   });
 
   describe('executeSwap (Base → Solana)', () => {
     const baseToSolanaRequest = {
-      sourceChainId: 'base',
-      sourceTokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      destinationChainId: 'solana',
-      destinationTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      sourceChain: 'base',
+      sourceToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+      destinationChain: 'solana',
+      destinationToken: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       amount: '1000000',
-      senderAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-      recipientAddress: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
+      userWallet: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+      recipient: '83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri',
     };
 
     it('should handle transactions array in response', async () => {
-      const mockResponse = {
+      const mockResponse: ExecuteSwapResponse = {
+        requestId: 'req-base-123',
         transactions: [
           {
             to: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
@@ -501,15 +497,15 @@ describe('ClawSwapClient', () => {
             description: 'Bridge deposit',
           },
         ],
-        orderId: '0xfedcba',
-        isToken2022: false,
-        accounting: {
-          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: 'No x402 fee for EVM-source swaps' },
-          gasReimbursement: null,
-          bridgeFee: { estimatedUsd: 0.037, note: 'Relay bridge fee' },
-          sourceAmount: '1000000',
-          destinationAmount: '962766',
+        sourceChain: 'base',
+        estimatedOutput: '962766',
+        estimatedTime: 300,
+        fees: {
+          clawswap: '0',
+          relay: '0.037',
+          gas: 'paid by agent',
         },
+        instructions: 'Sign and submit each transaction sequentially on Base',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -524,25 +520,25 @@ describe('ClawSwapClient', () => {
       expect(result.transactions![0].description).toBe('Approve USDC spending');
       expect(result.transactions![1].to).toBe('0xa5F565650890Fba1824Ee0F21EbBbF660a179934');
       expect(result.transactions![1].chainId).toBe(8453);
-      expect(result.accounting.gasReimbursement).toBeNull();
-      expect(result.accounting.x402Fee.amountUsd).toBe(0);
-      expect(result.isToken2022).toBe(false);
+      expect(result.fees.clawswap).toBe('0');
+      expect(result.requestId).toBe('req-base-123');
     });
 
     it('should not require x402 payment for Base-source swaps', async () => {
-      const mockResponse = {
+      const mockResponse: ExecuteSwapResponse = {
+        requestId: 'req-base-456',
         transactions: [
           { to: '0xabc', data: '0x123', value: '0', chainId: 8453 },
         ],
-        orderId: '0xdef',
-        isToken2022: false,
-        accounting: {
-          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: 'No x402 fee' },
-          gasReimbursement: null,
-          bridgeFee: { estimatedUsd: 0.037, note: 'Relay bridge fee' },
-          sourceAmount: '1000000',
-          destinationAmount: '962766',
+        sourceChain: 'base',
+        estimatedOutput: '962766',
+        estimatedTime: 300,
+        fees: {
+          clawswap: '0',
+          relay: '0.037',
+          gas: 'paid by agent',
         },
+        instructions: 'Sign and submit on Base',
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -553,42 +549,23 @@ describe('ClawSwapClient', () => {
       const result = await client.executeSwap(baseToSolanaRequest);
 
       // Verify no 402 error was thrown (no x402 payment needed)
-      expect(result.orderId).toBe('0xdef');
-      expect(result.accounting.x402Fee.amountUsd).toBe(0);
-    });
-  });
-
-  describe('isEvmTransaction (deprecated)', () => {
-    it('should return true for EVM transaction objects', () => {
-      const evmTx: EvmTransaction = {
-        to: '0xa5F565650890Fba1824Ee0F21EbBbF660a179934',
-        data: '0xabcdef',
-        value: '0',
-        chainId: 8453,
-      };
-      expect(isEvmTransaction(evmTx)).toBe(true);
-    });
-
-    it('should return false for strings', () => {
-      expect(isEvmTransaction('AQAAAAAAAAAAAAAAAACAAQAHDw...')).toBe(false);
+      expect(result.requestId).toBe('req-base-456');
+      expect(result.fees.clawswap).toBe('0');
     });
   });
 
   describe('isEvmSource / isSolanaSource', () => {
     it('should identify EVM source responses (transactions array)', () => {
       const evmResponse: ExecuteSwapResponse = {
+        requestId: 'req-123',
         transactions: [
           { to: '0xabc', data: '0x123', value: '0', chainId: 8453 },
         ],
-        orderId: 'order-123',
-        isToken2022: false,
-        accounting: {
-          x402Fee: { amountUsd: 0, currency: 'USDC', recipient: 'none', note: '' },
-          gasReimbursement: null,
-          bridgeFee: { estimatedUsd: 0.037, note: '' },
-          sourceAmount: '1000000',
-          destinationAmount: '962766',
-        },
+        sourceChain: 'base',
+        estimatedOutput: '962766',
+        estimatedTime: 300,
+        fees: { clawswap: '0', relay: '0.037', gas: 'paid by agent' },
+        instructions: 'Sign and submit on Base',
       };
       expect(isEvmSource(evmResponse)).toBe(true);
       expect(isSolanaSource(evmResponse)).toBe(false);
@@ -596,24 +573,36 @@ describe('ClawSwapClient', () => {
 
     it('should identify Solana source responses (transaction string)', () => {
       const solanaResponse: ExecuteSwapResponse = {
+        requestId: 'req-456',
         transaction: 'AQAAAAAAAAAAAAAAAACAAQAHDw...',
-        orderId: 'order-456',
-        isToken2022: false,
-        accounting: {
-          x402Fee: { amountUsd: 0.5, currency: 'USDC', recipient: 'treasury', note: '' },
-          gasReimbursement: { amountRaw: '5000', amountFormatted: '0.000005', tokenMint: 'USDC', recipient: 'addr', note: '' },
-          bridgeFee: { estimatedUsd: 0.037, note: '' },
-          sourceAmount: '1000000',
-          destinationAmount: '962766',
-        },
+        sourceChain: 'solana',
+        estimatedOutput: '999000',
+        estimatedTime: 300,
+        fees: { clawswap: '0.25', relay: '0.03', gas: '0.00 (sponsored)' },
+        instructions: 'Sign and submit to Solana RPC',
       };
       expect(isSolanaSource(solanaResponse)).toBe(true);
       expect(isEvmSource(solanaResponse)).toBe(false);
     });
+
+    it('should return false for both guards when both fields are present', () => {
+      const ambiguousResponse: ExecuteSwapResponse = {
+        requestId: 'req-789',
+        transaction: 'base64-data',
+        transactions: [{ to: '0xabc', data: '0x123', value: '0', chainId: 8453 }],
+        sourceChain: 'solana',
+        estimatedOutput: '999000',
+        estimatedTime: 300,
+        fees: { clawswap: '0.25', relay: '0.03', gas: '0.00' },
+        instructions: 'Ambiguous',
+      };
+      expect(isSolanaSource(ambiguousResponse)).toBe(false);
+      expect(isEvmSource(ambiguousResponse)).toBe(false);
+    });
   });
 
   describe('getSupportedPairs', () => {
-    it('should return all valid cross-chain pairs', async () => {
+    it('should return all valid cross-chain pairs with deduplicated token fetches', async () => {
       // Mock chains response
       const mockChains = {
         chains: [
@@ -635,17 +624,24 @@ describe('ClawSwapClient', () => {
         ],
       };
 
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, json: async () => mockChains })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockSolanaTokens })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockBaseTokens })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockBaseTokens })
-        .mockResolvedValueOnce({ ok: true, json: async () => mockSolanaTokens });
+      // With Promise.all optimization: 1 chains call + 2 token calls = 3 total
+      mockFetch.mockImplementation(async (url: string) => {
+        if (url.includes('/api/chains')) {
+          return { ok: true, json: async () => mockChains };
+        }
+        if (url.includes('/api/tokens/solana')) {
+          return { ok: true, json: async () => mockSolanaTokens };
+        }
+        if (url.includes('/api/tokens/base')) {
+          return { ok: true, json: async () => mockBaseTokens };
+        }
+        return { ok: false, status: 404, json: async () => ({}) };
+      });
 
       const pairs = await client.getSupportedPairs();
 
       expect(Array.isArray(pairs)).toBe(true);
-      expect(pairs.length).toBeGreaterThan(0);
+      expect(pairs.length).toBe(2); // solana->base USDC + base->solana USDC
 
       // Verify structure
       pairs.forEach((pair) => {
@@ -653,10 +649,11 @@ describe('ClawSwapClient', () => {
         expect(pair).toHaveProperty('sourceToken');
         expect(pair).toHaveProperty('destinationChain');
         expect(pair).toHaveProperty('destinationToken');
-
-        // Verify no same-chain pairs
         expect(pair.sourceChain.id).not.toBe(pair.destinationChain.id);
       });
+
+      // Verify only 3 API calls (chains + solana tokens + base tokens)
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 });

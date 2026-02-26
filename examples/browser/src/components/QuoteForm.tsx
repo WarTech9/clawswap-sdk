@@ -1,13 +1,24 @@
 import { useState, useEffect } from 'react';
 import { ClawSwapClient, Chain, Token, QuoteResponse } from '@clawswap/sdk';
 
+export interface SwapParams {
+  quote: QuoteResponse;
+  sourceChain: string;
+  sourceToken: string;
+  destinationChain: string;
+  destinationToken: string;
+  userWallet: string;
+  recipient: string;
+  amount: string;
+}
+
 interface Props {
   client: ClawSwapClient;
   walletAddress?: string;
-  onQuote?: (quote: QuoteResponse) => void;
+  onSwapParams?: (params: SwapParams) => void;
 }
 
-export function QuoteForm({ client, walletAddress, onQuote }: Props) {
+export function QuoteForm({ client, walletAddress, onSwapParams }: Props) {
   const [chains, setChains] = useState<Chain[]>([]);
   const [sourceChain, setSourceChain] = useState('');
   const [destChain, setDestChain] = useState('');
@@ -64,18 +75,27 @@ export function QuoteForm({ client, walletAddress, onQuote }: Props) {
 
     try {
       const result = await client.getQuote({
-        sourceChainId: sourceChain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: destChain,
-        destinationTokenAddress: destToken,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
         amount,
-        senderAddress,
-        recipientAddress,
+        userWallet: senderAddress,
+        recipient: recipientAddress,
         slippageTolerance: 0.01,
       });
 
       setQuote(result);
-      onQuote?.(result);
+      onSwapParams?.({
+        quote: result,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
+        userWallet: senderAddress,
+        recipient: recipientAddress,
+        amount,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get quote');
     } finally {
@@ -211,28 +231,20 @@ export function QuoteForm({ client, walletAddress, onQuote }: Props) {
           <h3>Quote Details</h3>
           <div className="quote-details">
             <div className="detail-row">
-              <span>Quote ID:</span>
-              <code>{quote.id}</code>
-            </div>
-            <div className="detail-row">
               <span>You send:</span>
-              <strong>{quote.sourceAmount}</strong>
+              <strong>{amount} (smallest units)</strong>
             </div>
             <div className="detail-row">
               <span>You receive:</span>
-              <strong>{quote.destinationAmount}</strong>
+              <strong>{quote.estimatedOutputFormatted}</strong>
             </div>
             <div className="detail-row">
-              <span>Total fee:</span>
-              <span>${quote.fees.totalFeeUsd}</span>
+              <span>Fees:</span>
+              <span>ClawSwap: {quote.fees.clawswap} | Relay: {quote.fees.relay} | Gas: {quote.fees.gas}</span>
             </div>
             <div className="detail-row">
               <span>Estimated time:</span>
-              <span>{quote.estimatedTimeSeconds}s</span>
-            </div>
-            <div className="detail-row warning">
-              <span>⏱ Expires in:</span>
-              <strong>{quote.expiresIn}s</strong>
+              <span>{quote.estimatedTime}s</span>
             </div>
           </div>
         </div>
