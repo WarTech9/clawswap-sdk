@@ -1,6 +1,6 @@
 {
   "name": "@clawswap/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Gasless cross-chain token swaps for AI agents via x402 micropayments. Solana ↔ Base bidirectional. No API key, no gas management.",
   "type": "module",
   "main": "./dist/index.cjs",
