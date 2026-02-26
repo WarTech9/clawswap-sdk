@@ -7,17 +7,18 @@ const SOLANA_RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.mainn
 interface Props {
   client: ClawSwapClient;
   quote: QuoteResponse;
-  sourceChainId: string;
-  sourceTokenAddress: string;
-  destinationChainId: string;
-  destinationTokenAddress: string;
-  senderAddress: string;
-  destinationAddress: string;
+  sourceChain: string;
+  sourceToken: string;
+  destinationChain: string;
+  destinationToken: string;
+  userWallet: string;
+  recipient: string;
+  amount: string;
   walletClient: WalletClient | null;
   publicClient: PublicClient | null;
   ensureBaseChain: () => Promise<void>;
   solanaConnected: boolean;
-  onSwapInitiated?: (orderId: string) => void;
+  onSwapInitiated?: (requestId: string) => void;
 }
 
 interface TxResult {
@@ -29,12 +30,13 @@ interface TxResult {
 export function SwapButton({
   client,
   quote,
-  sourceChainId,
-  sourceTokenAddress,
-  destinationChainId,
-  destinationTokenAddress,
-  senderAddress,
-  destinationAddress,
+  sourceChain,
+  sourceToken,
+  destinationChain,
+  destinationToken,
+  userWallet,
+  recipient,
+  amount,
   walletClient,
   publicClient,
   ensureBaseChain,
@@ -54,14 +56,13 @@ export function SwapButton({
 
     try {
       const executeResponse = await client.executeSwap({
-        sourceChainId,
-        sourceTokenAddress,
-        destinationChainId,
-        destinationTokenAddress,
-        amount: quote.sourceAmount,
-        senderAddress,
-        recipientAddress: destinationAddress,
-        slippageTolerance: 0.01,
+        sourceChain,
+        sourceToken,
+        destinationChain,
+        destinationToken,
+        amount,
+        userWallet,
+        recipient,
       });
 
       console.log('Swap response:', executeResponse);
@@ -142,7 +143,7 @@ export function SwapButton({
         setStatus('Transaction confirmed! Waiting for cross-chain settlement...');
       }
 
-      onSwapInitiated?.(executeResponse.orderId);
+      onSwapInitiated?.(executeResponse.requestId);
     } catch (err) {
       console.error('Swap failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to execute swap');
@@ -151,45 +152,32 @@ export function SwapButton({
     }
   };
 
-  const expiresInSeconds = quote.expiresIn;
-  const isExpired = expiresInSeconds <= 0;
-
   return (
     <div className="swap-button-container">
       <div className="swap-summary">
         <div className="summary-row">
-          <span>You send:</span>
-          <strong>{quote.sourceAmount}</strong>
-        </div>
-        <div className="summary-row">
           <span>You receive:</span>
-          <strong>{quote.destinationAmount}</strong>
+          <strong>{quote.estimatedOutputFormatted}</strong>
         </div>
         <div className="summary-row">
-          <span>Destination:</span>
-          <code>{destinationAddress.slice(0, 10)}...{destinationAddress.slice(-6)}</code>
+          <span>Recipient:</span>
+          <code>{recipient.slice(0, 10)}...{recipient.slice(-6)}</code>
         </div>
         <div className="summary-row">
-          <span>Estimated fee:</span>
-          <strong>${quote.fees.totalEstimatedFeeUsd.toFixed(2)}</strong>
+          <span>Estimated time:</span>
+          <strong>{quote.estimatedTime}s</strong>
         </div>
       </div>
 
       <button
         onClick={handleExecuteSwap}
         className="btn btn-primary btn-large"
-        disabled={loading || isExpired}
+        disabled={loading}
       >
-        {loading ? 'Processing...' : isExpired ? 'Quote expired' : 'Execute Swap'}
+        {loading ? 'Processing...' : 'Execute Swap'}
       </button>
 
       {status && <div className="info">{status}</div>}
-
-      {isExpired && (
-        <p className="warning">
-          This quote has expired. Please get a new quote.
-        </p>
-      )}
 
       {txResults.length > 0 && (
         <div className="tx-results">

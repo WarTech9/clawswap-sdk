@@ -3,12 +3,13 @@ import { ClawSwapClient, Chain, Token, QuoteResponse } from '@clawswap/sdk';
 
 export interface SwapParams {
   quote: QuoteResponse;
-  sourceChainId: string;
-  sourceTokenAddress: string;
-  destinationChainId: string;
-  destinationTokenAddress: string;
-  senderAddress: string;
-  recipientAddress: string;
+  sourceChain: string;
+  sourceToken: string;
+  destinationChain: string;
+  destinationToken: string;
+  userWallet: string;
+  recipient: string;
+  amount: string;
 }
 
 interface Props {
@@ -74,25 +75,26 @@ export function QuoteForm({ client, walletAddress, onSwapParams }: Props) {
 
     try {
       const result = await client.getQuote({
-        sourceChainId: sourceChain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: destChain,
-        destinationTokenAddress: destToken,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
         amount,
-        senderAddress,
-        recipientAddress,
+        userWallet: senderAddress,
+        recipient: recipientAddress,
         slippageTolerance: 0.01,
       });
 
       setQuote(result);
       onSwapParams?.({
         quote: result,
-        sourceChainId: sourceChain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: destChain,
-        destinationTokenAddress: destToken,
-        senderAddress,
-        recipientAddress,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
+        userWallet: senderAddress,
+        recipient: recipientAddress,
+        amount,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get quote');
@@ -229,28 +231,20 @@ export function QuoteForm({ client, walletAddress, onSwapParams }: Props) {
           <h3>Quote Details</h3>
           <div className="quote-details">
             <div className="detail-row">
-              <span>Quote ID:</span>
-              <code>{quote.quoteId}</code>
-            </div>
-            <div className="detail-row">
               <span>You send:</span>
-              <strong>{quote.sourceAmount}</strong>
+              <strong>{amount} (smallest units)</strong>
             </div>
             <div className="detail-row">
               <span>You receive:</span>
-              <strong>{quote.destinationAmount}</strong>
+              <strong>{quote.estimatedOutputFormatted}</strong>
             </div>
             <div className="detail-row">
-              <span>Total fee:</span>
-              <span>${quote.fees.totalEstimatedFeeUsd.toFixed(2)}</span>
+              <span>Fees:</span>
+              <span>ClawSwap: {quote.fees.clawswap} | Relay: {quote.fees.relay} | Gas: {quote.fees.gas}</span>
             </div>
             <div className="detail-row">
               <span>Estimated time:</span>
-              <span>{quote.estimatedTimeSeconds}s</span>
-            </div>
-            <div className="detail-row warning">
-              <span>Expires in:</span>
-              <strong>{quote.expiresIn}s</strong>
+              <span>{quote.estimatedTime}s</span>
             </div>
           </div>
         </div>

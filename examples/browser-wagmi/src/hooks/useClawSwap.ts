@@ -202,10 +202,10 @@ export function useClawSwap(phantom?: PhantomState) {
   }, [walletClient, publicClient, client, phantom]);
 
   const waitForSettlement = useCallback(async (
-    orderId: string,
+    requestId: string,
     onStatusUpdate?: (status: StatusResponse) => void,
   ): Promise<StatusResponse> => {
-    return client.waitForSettlement(orderId, {
+    return client.waitForSettlement(requestId, {
       timeout: 300_000,
       interval: 3000,
       onStatusUpdate,

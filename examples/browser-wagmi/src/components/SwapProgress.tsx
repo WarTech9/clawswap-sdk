@@ -9,11 +9,11 @@ interface PhantomState {
 }
 
 interface Props {
-  orderId: string;
+  requestId: string;
   phantom?: PhantomState;
 }
 
-export function SwapProgress({ orderId, phantom }: Props) {
+export function SwapProgress({ requestId, phantom }: Props) {
   const { waitForSettlement } = useClawSwap(phantom);
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [settled, setSettled] = useState(false);
@@ -24,7 +24,7 @@ export function SwapProgress({ orderId, phantom }: Props) {
 
     async function poll() {
       try {
-        const result = await waitForSettlement(orderId, (s) => {
+        const result = await waitForSettlement(requestId, (s) => {
           if (!cancelled) setStatus(s);
         });
         if (!cancelled) {
@@ -41,7 +41,7 @@ export function SwapProgress({ orderId, phantom }: Props) {
     poll();
 
     return () => { cancelled = true; };
-  }, [orderId, waitForSettlement]);
+  }, [requestId, waitForSettlement]);
 
   if (error) {
     return <div className="error-banner">{error}</div>;
@@ -51,7 +51,7 @@ export function SwapProgress({ orderId, phantom }: Props) {
     return <div className="progress-loading">Loading swap status...</div>;
   }
 
-  const isSuccess = status.status === 'completed' || status.status === 'fulfilled';
+  const isSuccess = status.status === 'completed';
   const isFailed = status.status === 'failed';
 
   return (
@@ -62,16 +62,16 @@ export function SwapProgress({ orderId, phantom }: Props) {
 
       <div className="progress-details">
         <div className="progress-row">
-          <span>Order ID:</span>
-          <code>{status.orderId}</code>
+          <span>Request ID:</span>
+          <code>{status.requestId}</code>
         </div>
         <div className="progress-row">
           <span>Source:</span>
-          <span>{status.sourceChainId} - {status.sourceAmount}</span>
+          <span>{status.sourceChain}</span>
         </div>
         <div className="progress-row">
           <span>Destination:</span>
-          <span>{status.destinationChainId} - {status.destinationAmount}</span>
+          <span>{status.destinationChain}: {status.outputAmount}</span>
         </div>
         {status.sourceTxHash && (
           <div className="progress-row">
@@ -82,26 +82,20 @@ export function SwapProgress({ orderId, phantom }: Props) {
         {status.destinationTxHash && (
           <div className="progress-row">
             <span>Dest TX:</span>
-            {status.explorerUrl ? (
-              <a href={status.explorerUrl} target="_blank" rel="noopener noreferrer">
-                {status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}
-              </a>
-            ) : (
-              <code>{status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}</code>
-            )}
+            <code>{status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}</code>
           </div>
         )}
       </div>
 
       {isSuccess && (
         <div className="success-banner">
-          Swap completed! Received {status.destinationAmount} tokens.
+          Swap completed! Received {status.outputAmount} tokens.
         </div>
       )}
 
-      {isFailed && status.failureReason && (
+      {isFailed && (
         <div className="error-banner">
-          Swap failed: {status.failureReason}
+          Swap failed.
         </div>
       )}
 

@@ -82,12 +82,13 @@ export function App() {
                 <SwapButton
                   client={client}
                   quote={swapParams.quote}
-                  sourceChainId={swapParams.sourceChainId}
-                  sourceTokenAddress={swapParams.sourceTokenAddress}
-                  destinationChainId={swapParams.destinationChainId}
-                  destinationTokenAddress={swapParams.destinationTokenAddress}
-                  senderAddress={swapParams.senderAddress}
-                  destinationAddress={swapParams.recipientAddress}
+                  sourceChain={swapParams.sourceChain}
+                  sourceToken={swapParams.sourceToken}
+                  destinationChain={swapParams.destinationChain}
+                  destinationToken={swapParams.destinationToken}
+                  userWallet={swapParams.userWallet}
+                  recipient={swapParams.recipient}
+                  amount={swapParams.amount}
                   walletClient={walletClient}
                   publicClient={publicClient}
                   ensureBaseChain={ensureBaseChain}

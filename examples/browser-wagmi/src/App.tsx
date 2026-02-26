@@ -9,7 +9,7 @@ import './styles.css';
 export function App() {
   const { isConnected } = useAccount();
   const phantom = usePhantomWallet();
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
 
   const anyConnected = isConnected || phantom.connected;
 
@@ -48,13 +48,13 @@ export function App() {
           <>
             <section className="card">
               <h2>Swap</h2>
-              <SwapForm onSwapInitiated={setOrderId} phantom={phantom} />
+              <SwapForm onSwapInitiated={setRequestId} phantom={phantom} />
             </section>
 
-            {orderId && (
+            {requestId && (
               <section className="card">
                 <h2>Settlement Status</h2>
-                <SwapProgress orderId={orderId} phantom={phantom} />
+                <SwapProgress requestId={requestId} phantom={phantom} />
               </section>
             )}
           </>

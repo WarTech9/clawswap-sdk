@@ -29,7 +29,7 @@ export function StatusPanel({ client, swapId }: Props) {
       setStatus(result);
 
       // Stop polling on terminal status
-      if (['completed', 'fulfilled', 'failed', 'cancelled'].includes(result.status)) {
+      if (['completed', 'failed'].includes(result.status)) {
         setPolling(false);
       }
     } catch (err) {
@@ -46,10 +46,9 @@ export function StatusPanel({ client, swapId }: Props) {
     return <div className="loading">Loading status...</div>;
   }
 
-  const isSuccess = status.status === 'completed' || status.status === 'fulfilled';
+  const isSuccess = status.status === 'completed';
   const statusClass = isSuccess ? 'success' :
                       status.status === 'failed' ? 'error' :
-                      status.status === 'cancelled' ? 'warning' :
                       'info';
 
   return (
@@ -60,16 +59,16 @@ export function StatusPanel({ client, swapId }: Props) {
 
       <div className="status-details">
         <div className="detail-row">
-          <span>Order ID:</span>
-          <code>{status.orderId}</code>
+          <span>Request ID:</span>
+          <code>{status.requestId}</code>
         </div>
         <div className="detail-row">
           <span>Source:</span>
-          <span>{status.sourceChainId}: {status.sourceAmount}</span>
+          <span>{status.sourceChain}</span>
         </div>
         <div className="detail-row">
           <span>Destination:</span>
-          <span>{status.destinationChainId}: {status.destinationAmount}</span>
+          <span>{status.destinationChain}: {status.outputAmount}</span>
         </div>
         {status.sourceTxHash && (
           <div className="detail-row">
@@ -80,32 +79,26 @@ export function StatusPanel({ client, swapId }: Props) {
         {status.destinationTxHash && (
           <div className="detail-row">
             <span>Destination TX:</span>
-            {status.explorerUrl ? (
-              <a href={status.explorerUrl} target="_blank" rel="noopener noreferrer">
-                {status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}
-              </a>
-            ) : (
-              <code>{status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}</code>
-            )}
+            <code>{status.destinationTxHash.slice(0, 10)}...{status.destinationTxHash.slice(-8)}</code>
           </div>
         )}
-        {status.estimatedCompletionTime && (
+        {status.completedAt && (
           <div className="detail-row">
-            <span>Estimated completion:</span>
-            <span>{new Date(status.estimatedCompletionTime).toLocaleTimeString()}</span>
+            <span>Completed at:</span>
+            <span>{new Date(status.completedAt).toLocaleTimeString()}</span>
           </div>
         )}
       </div>
 
       {isSuccess && (
         <div className="success-message">
-          Swap completed successfully! You received {status.destinationAmount} tokens.
+          Swap completed successfully! You received {status.outputAmount} tokens.
         </div>
       )}
 
-      {status.status === 'failed' && status.failureReason && (
+      {status.status === 'failed' && (
         <div className="error-message">
-          Swap failed: {status.failureReason}
+          Swap failed.
         </div>
       )}
 

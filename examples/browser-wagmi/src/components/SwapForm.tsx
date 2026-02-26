@@ -10,7 +10,7 @@ interface PhantomState {
 }
 
 interface Props {
-  onSwapInitiated: (orderId: string) => void;
+  onSwapInitiated: (requestId: string) => void;
   phantom?: PhantomState;
 }
 
@@ -69,13 +69,13 @@ export function SwapForm({ onSwapInitiated, phantom }: Props) {
 
     try {
       const result = await getQuote({
-        sourceChainId: sourceChain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: destChain,
-        destinationTokenAddress: destToken,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
         amount,
-        senderAddress: address,
-        recipientAddress,
+        userWallet: address,
+        recipient: recipientAddress,
       });
       setQuote(result);
     } finally {
@@ -93,17 +93,17 @@ export function SwapForm({ onSwapInitiated, phantom }: Props) {
 
     try {
       const response = await executeAndSign({
-        sourceChainId: sourceChain,
-        sourceTokenAddress: sourceToken,
-        destinationChainId: destChain,
-        destinationTokenAddress: destToken,
-        amount: quote.sourceAmount,
-        senderAddress: address,
-        recipientAddress,
+        sourceChain,
+        sourceToken,
+        destinationChain: destChain,
+        destinationToken: destToken,
+        amount,
+        userWallet: address,
+        recipient: recipientAddress,
       });
 
       setSigningStatus('');
-      onSwapInitiated(response.orderId);
+      onSwapInitiated(response.requestId);
     } catch {
       setSigningStatus('');
     } finally {
@@ -112,7 +112,7 @@ export function SwapForm({ onSwapInitiated, phantom }: Props) {
   };
 
   const canQuote = sourceChain && destChain && sourceToken && destToken && amount && address && recipientAddress;
-  const isExpired = quote ? quote.expiresIn <= 0 : false;
+  const canSwap = !!quote;
 
   return (
     <div className="swap-form">
@@ -195,18 +195,17 @@ export function SwapForm({ onSwapInitiated, phantom }: Props) {
       {quote && (
         <div className="quote-card">
           <h3>Quote</h3>
-          <div className="quote-row"><span>You send:</span><strong>{quote.sourceAmount}</strong></div>
-          <div className="quote-row"><span>You receive:</span><strong>{quote.destinationAmount}</strong></div>
-          <div className="quote-row"><span>Fee:</span><span>${quote.fees.totalEstimatedFeeUsd.toFixed(2)}</span></div>
-          <div className="quote-row"><span>Est. time:</span><span>{quote.estimatedTimeSeconds}s</span></div>
-          <div className="quote-row warning"><span>Expires in:</span><strong>{quote.expiresIn}s</strong></div>
+          <div className="quote-row"><span>You send:</span><strong>{amount} (smallest units)</strong></div>
+          <div className="quote-row"><span>You receive:</span><strong>{quote.estimatedOutputFormatted}</strong></div>
+          <div className="quote-row"><span>Fees:</span><span>ClawSwap: {quote.fees.clawswap} | Relay: {quote.fees.relay} | Gas: {quote.fees.gas}</span></div>
+          <div className="quote-row"><span>Est. time:</span><span>{quote.estimatedTime}s</span></div>
 
           <button
             onClick={handleExecuteSwap}
             className="btn btn-primary"
-            disabled={swapLoading || isExpired}
+            disabled={swapLoading || !canSwap}
           >
-            {swapLoading ? (signingStatus || 'Processing...') : isExpired ? 'Quote expired' : 'Execute Swap'}
+            {swapLoading ? (signingStatus || 'Processing...') : 'Execute Swap'}
           </button>
         </div>
       )}
